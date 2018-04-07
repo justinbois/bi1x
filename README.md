@@ -1,4 +1,4 @@
-# bi1x_utils
+# bi1x
 
 Utilities Caltech Bi 1x: The Great Ideas of Biology: Exploration through Experimentation
 
@@ -7,10 +7,10 @@ Utilities Caltech Bi 1x: The Great Ideas of Biology: Exploration through Experim
 
 To install use pip:
 
-    pip install bi1x_utils
+    pip install bi1x
 
 
 Or clone the repo:
 
-    git clone https://github.com/justinbois/bi1x_utils.git
+    git clone https://github.com/justinbois/bi1x.git
     python setup.py install
