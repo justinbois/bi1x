@@ -2,7 +2,7 @@
 
 """Top-level package for bebi103."""
 
-from . viz import viz
+from . import viz
 
 __author__ = """Justin Bois"""
 __email__ = 'bois@caltech.edu'
