@@ -1500,7 +1500,7 @@ def im_click(im, color_mapper=None, plot_height=400, plot_width=None,
                flip=flip)
 
     div = bokeh.models.Div(width=200)
-    layout = bokeh.layout.row(p, div)
+    layout = bokeh.layouts.row(p, div)
 
     p.js_on_event(bokeh.events.Tap, display_event(div, attributes=['x', 'y']))
 
