@@ -2,8 +2,8 @@
 
 """Top-level package for bebi103."""
 
-from . import viz
+from . import viz, image
 
 __author__ = """Justin Bois"""
 __email__ = 'bois@caltech.edu'
-__version__ = '0.0.5'
+__version__ = '0.0.6'
