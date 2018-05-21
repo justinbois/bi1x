@@ -112,7 +112,7 @@ def verts_to_roi(verts, shape, shift=True):
 
     Returns
     -------
-    roi : array_like, Boolean, shape (size_i, size_j)
+    roi : array_like, Boolean, shape
         roi[i,j] is True if pixel (i,j) is in the ROI.
         roi[i,j] is False otherwise
     roi_bbox : tuple of slice objects
@@ -149,7 +149,7 @@ def verts_to_roi(verts, shape, shift=True):
     sub_roi = in_roi.reshape((sub_j_size, sub_i_size)).astype(np.bool)
 
     # Build full ROI
-    roi = np.zeros((size_i, size_j), dtype=bool)
+    roi = np.zeros(shape, dtype=bool)
     roi[j_range[0]:j_range[1], i_range[0]:i_range[1]] = sub_roi
 
     # Get bounding box of ROI
