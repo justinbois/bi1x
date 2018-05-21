@@ -93,7 +93,7 @@ def simple_image_collection(im_glob, load_func=skimage.io.imread,
                                  **load_func_kwargs)
 
 
-def verts_to_roi(verts, size_i, size_j):
+def verts_to_roi(verts, shape, shift=True):
     """
     Converts list of vertices to an ROI and ROI bounding box
 
@@ -102,12 +102,13 @@ def verts_to_roi(verts, size_i, size_j):
     verts : array_like, shape (n_verts, 2)
         List of vertices of a polygon with no crossing lines.  The units
         describing the positions of the vertices are interpixel spacing.
-    size_i : int
-        Number of pixels in the i-direction (number of rows) in
-        the image
-    size_j : int
-        Number of pixels in the j-direction (number of columns) in
-        the image
+    shape : 2-tuple of ints
+        Shape of image, (n_rows, n_columns).
+    shift : bool, default True
+        If True, consider the center of a pixel as being half-integers.
+        This is useful if using a polygon drawn over an image, since the
+        image is "plotted" with pixels represented as squares centered
+        on half-integer pixel values.
 
     Returns
     -------
@@ -136,7 +137,10 @@ def verts_to_roi(verts, size_i, size_j):
     pts = np.array(list(zip(ii.ravel(), jj.ravel())))
 
     # Make a path object from vertices
-    p = path.Path(verts)
+    if shift:
+        p = path.Path(verts + 0.5)
+    else:
+        p = path.Path(verts)
 
     # Get list of points that are in roi
     in_roi = p.contains_points(pts)
