@@ -137,13 +137,13 @@ def verts_to_roi(verts, shape, shift=True):
     pts = np.array(list(zip(ii.ravel(), jj.ravel())))
 
     # Make a path object from vertices
-    if shift:
-        p = path.Path(verts + 0.5)
-    else:
-        p = path.Path(verts)
+    p = path.Path(verts)
 
     # Get list of points that are in roi
-    in_roi = p.contains_points(pts)
+    if shift:
+        in_roi = p.contains_points(pts + 0.5)
+    else:
+        in_roi = p.contains_points(pts)
 
     # Subimage ROI
     sub_roi = in_roi.reshape((sub_j_size, sub_i_size)).astype(np.bool)
