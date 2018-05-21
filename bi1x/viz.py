@@ -1520,7 +1520,7 @@ def mpl_cmap_to_color_mapper(cmap):
     Returns
     -------
     output : bokeh.models.LinearColorMapper instance
-        A linear color_mapper with 25 gradations.
+        A linear color_mapper with 256 gradations.
 
     Notes
     -----
