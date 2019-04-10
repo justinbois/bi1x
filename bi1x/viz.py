@@ -6,6 +6,7 @@ import numba
 
 import scipy.ndimage
 import skimage
+import skimage.exposure
 
 from matplotlib.pyplot import get_cmap as mpl_get_cmap
 
@@ -203,6 +204,45 @@ def ecdf(data=None, conf_int=False, ptiles=[2.5, 97.5], n_bs_reps=1000,
             p.ray(x[-1], 1, None, 0, **kwargs)
     else:
         p.circle(x, y, **kwargs)
+
+    return p
+
+
+def im_hist(im, p=None, title=None, y_axis_type='linear', **kwargs):
+    """
+    Make plot of image histogram.
+
+    Parameters
+    ----------
+    im : 2D Numpy array
+        Image for which the histogram will be plotted.
+    p : bokeh.plotting.Figure instance, or None (default)
+        If None, create a new figure. Otherwise, populate the existing
+        figure `p`.
+    title : str, default None
+        Title for the plot.
+    y_axis_type : one of ['linear', 'log'], default 'linear'
+        Speicifcation of y-axis being on a linear or logarithmic scale.
+    kwargs : kwargs specification
+        Keyword arguments sent to Bokeh's line glyph.
+
+    Returns
+    -------
+    output : bokeh.plotting.Figure instance
+        A Bokeh figure containing the plot of the histogram.
+    """
+    # Get the histogram data
+    hist, bins = skimage.exposure.histogram(im)
+
+    if p is None:
+        p = bokeh.plotting.figure(plot_height=300,
+                                  plot_width=400,
+                                  y_axis_type=y_axis_type,
+                                  x_axis_label='intensity',
+                                  y_axis_label='count',
+                                  title=title)
+
+    p.line(bins, hist, line_width=2, line_join='bevel', **kwargs)
 
     return p
 
