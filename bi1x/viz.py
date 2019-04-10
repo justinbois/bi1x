@@ -2,25 +2,25 @@ import warnings
 
 import numpy as np
 import pandas as pd
+import numba
+
 import scipy.ndimage
 import skimage
 
-import matplotlib._contour
 from matplotlib.pyplot import get_cmap as mpl_get_cmap
 
 import bokeh.models
 import bokeh.palettes
 import bokeh.plotting
 
-
 from . import utils
 
-
-def fill_between(x1, y1, x2, y2, x_axis_label=None, y_axis_label=None,
+def fill_between(x1=None, y1=None, x2=None, y2=None,
+                 x_axis_label=None, y_axis_label=None,
                  x_axis_type='linear', y_axis_type='linear',
                  title=None, plot_height=300, plot_width=450,
                  fill_color='#1f77b4', line_color='#1f77b4', show_line=True,
-                 line_width=1, fill_alpha=1, line_alpha=1, p=None, **kwargs):
+                 line_width=1, fill_alpha=1, line_alpha=1, p=None,  **kwargs):
     """
     Create a filled region between two curves.
 
@@ -35,18 +35,18 @@ def fill_between(x1, y1, x2, y2, x_axis_label=None, y_axis_label=None,
     y2 : array_like
         Array of y-values for second curve
     x_axis_label : str, default None
-        Label for the x-axis. Ignored is `p` is not None.
+        Label for the x-axis. Ignored if `p` is not None.
     y_axis_label : str, default None
-        Label for the y-axis. Ignored is `p` is not None.
+        Label for the y-axis. Ignored if `p` is not None.
     x_axis_type : str, default 'linear'
         Either 'linear' or 'log'.
     y_axis_type : str, default 'linear'
         Either 'linear' or 'log'.    title : str, default None
-        Title of the plot. Ignored is `p` is not None.
+        Title of the plot. Ignored if `p` is not None.
     plot_height : int, default 300
-        Height of plot, in pixels. Ignored is `p` is not None.
+        Height of plot, in pixels. Ignored if `p` is not None.
     plot_width : int, default 450
-        Width of plot, in pixels. Ignored is `p` is not None.
+        Width of plot, in pixels. Ignored if `p` is not None.
     fill_color : str, default '#1f77b4'
         Color of fill as a hex string.
     line_color : str, default '#1f77b4'
@@ -72,6 +72,7 @@ def fill_between(x1, y1, x2, y2, x_axis_label=None, y_axis_label=None,
     -----
     .. Any remaining kwargs are passed to bokeh.models.patch().
     """
+
     if p is None:
         p = bokeh.plotting.figure(
             plot_height=plot_height, plot_width=plot_width,
@@ -84,25 +85,28 @@ def fill_between(x1, y1, x2, y2, x_axis_label=None, y_axis_label=None,
             alpha=fill_alpha,
             fill_color=fill_color,
             line_width=0,
+            line_alpha=0,
             **kwargs)
 
     if show_line:
         p.line(x1,
-               y1, 
-               line_width=line_width, 
-               alpha=line_alpha, 
+               y1,
+               line_width=line_width,
+               alpha=line_alpha,
                color=line_color)
-        p.line(x2, 
-               y2, 
-               line_width=line_width, 
-               alpha=line_alpha, 
+        p.line(x2,
+               y2,
+               line_width=line_width,
+               alpha=line_alpha,
                color=line_color)
 
     return p
 
 
-def ecdf(data, p=None, x_axis_label=None, y_axis_label='ECDF', title=None,
-         plot_height=300, plot_width=450, formal=False, x_axis_type='linear',
+def ecdf(data=None, conf_int=False, ptiles=[2.5, 97.5], n_bs_reps=1000,
+         fill_color='lightgray', fill_alpha=1, p=None, x_axis_label=None,
+         y_axis_label='ECDF', title=None, plot_height=300, plot_width=450,
+         formal=False, complementary=False, x_axis_type='linear',
          y_axis_type='linear', **kwargs):
     """
     Create a plot of an ECDF.
@@ -111,22 +115,38 @@ def ecdf(data, p=None, x_axis_label=None, y_axis_label='ECDF', title=None,
     ----------
     data : array_like
         One-dimensional array of data. Nan's are ignored.
+    conf_int : bool, default False
+        If True, display a confidence interval on the ECDF.
+    ptiles : list, default [2.5, 97.5]
+        The percentiles to use for the confidence interval. Ignored it
+        `conf_int` is False.
+    n_bs_reps : int, default 1000
+        Number of bootstrap replicates to do to compute confidence
+        interval. Ignored if `conf_int` is False.
+    fill_color : str, default 'lightgray'
+        Color of the confidence interbal. Ignored if `conf_int` is
+        False.
+    fill_alpha : float, default 1
+        Opacity of confidence interval. Ignored if `conf_int` is False.
     p : bokeh.plotting.Figure instance, or None (default)
         If None, create a new figure. Otherwise, populate the existing
         figure `p`.
     x_axis_label : str, default None
-        Label for the x-axis. Ignored is `p` is not None.
+        Label for the x-axis. Ignored if `p` is not None.
     y_axis_label : str, default 'ECDF'
-        Label for the y-axis. Ignored is `p` is not None.
+        Label for the y-axis. Ignored if `p` is not None.
     title : str, default None
-        Title of the plot. Ignored is `p` is not None.
+        Title of the plot. Ignored if `p` is not None.
     plot_height : int, default 300
-        Height of plot, in pixels. Ignored is `p` is not None.
+        Height of plot, in pixels. Ignored if `p` is not None.
     plot_width : int, default 450
-        Width of plot, in pixels. Ignored is `p` is not None.
+        Width of plot, in pixels. Ignored if `p` is not None.
     formal : bool, default False
         If True, make a plot of a formal ECDF (staircase). If False,
         plot the ECDF as dots.
+    complementary : bool, default False
+        If True, plot the empirical complementary cumulative
+        distribution functon.
     x_axis_type : str, default 'linear'
         Either 'linear' or 'log'.
     y_axis_type : str, default 'linear'
@@ -144,31 +164,52 @@ def ecdf(data, p=None, x_axis_label=None, y_axis_label='ECDF', title=None,
     data = utils._convert_data(data)
 
     # Data points on ECDF
-    x, y = _ecdf_vals(data, formal)
+    x, y = _ecdf_vals(data, formal, complementary)
 
     # Instantiate Bokeh plot if not already passed in
     if p is None:
         p = bokeh.plotting.figure(
-            plot_height=plot_height, plot_width=plot_width, 
+            plot_height=plot_height, plot_width=plot_width,
             x_axis_label=x_axis_label, y_axis_label=y_axis_label,
             x_axis_type=x_axis_type, y_axis_type=y_axis_type, title=title)
+
+    # Do bootstrap replicates
+    if conf_int:
+        x_plot = np.sort(np.unique(x))
+        bs_reps = np.array([_ecdf_arbitrary_points(
+                            np.random.choice(data, size=len(data)), x_plot)
+                                for _ in range(n_bs_reps)])
+
+        # Compute the confidence intervals
+        ecdf_low, ecdf_high = np.percentile(np.array(bs_reps), ptiles, axis=0)
+
+        # Make them formal
+        _, ecdf_low = _to_formal(x=x_plot, y=ecdf_low)
+        x_plot, ecdf_high = _to_formal(x=x_plot, y=ecdf_high)
+
+        p = fill_between(x1=x_plot, y1=ecdf_low, x2=x_plot, y2=ecdf_high,
+                         fill_color=fill_color, show_line=False, p=p)
 
     if formal:
         # Line of steps
         p.line(x, y, **kwargs)
 
         # Rays for ends
-        p.ray(x[0], 0, None, np.pi, **kwargs)
-        p.ray(x[-1], 1, None, 0, **kwargs)      
+        if complementary:
+            p.ray(x[0], 1, None, np.pi, **kwargs)
+            p.ray(x[-1], 0, None, 0, **kwargs)
+        else:
+            p.ray(x[0], 0, None, np.pi, **kwargs)
+            p.ray(x[-1], 1, None, 0, **kwargs)
     else:
         p.circle(x, y, **kwargs)
 
     return p
 
 
-def histogram(data, bins=10, p=None, x_axis_label=None, y_axis_label=None,
-              title=None, plot_height=300, plot_width=450, density=True,
-              kind='step', **kwargs):
+def histogram(data=None, bins=10, p=None, x_axis_label=None,
+              y_axis_label=None, title=None, plot_height=300, plot_width=450,
+              density=False, kind='step', **kwargs):
     """
     Make a plot of a histogram of a data set.
 
@@ -176,22 +217,25 @@ def histogram(data, bins=10, p=None, x_axis_label=None, y_axis_label=None,
     ----------
     data : array_like
         1D array of data to make a histogram out of
-    bins : int or array_like, default 10
-        Setting for `bins` kwarg to be passed to `np.histogram()`.
+    bins : int, array_like, or one of 'exact' or 'integer' default 10
+        Setting for `bins` kwarg to be passed to `np.histogram()`. If
+        `'exact'`, then each unique value in the data gets its own bin.
+        If `integer`, then integer data is assumed and each integer gets
+        its own bin.
     p : bokeh.plotting.Figure instance, or None (default)
         If None, create a new figure. Otherwise, populate the existing
         figure `p`.
     x_axis_label : str, default None
-        Label for the x-axis. Ignored is `p` is not None.
+        Label for the x-axis. Ignored if `p` is not None.
     y_axis_label : str, default None
-        Label for the y-axis. Ignored is `p` is not None.
+        Label for the y-axis. Ignored if `p` is not None.
     title : str, default None
-        Title of the plot. Ignored is `p` is not None.
+        Title of the plot. Ignored if `p` is not None.
     plot_height : int, default 300
-        Height of plot, in pixels. Ignored is `p` is not None.
+        Height of plot, in pixels. Ignored if `p` is not None.
     plot_width : int, default 450
-        Width of plot, in pixels. Ignored is `p` is not None.
-    density : bool, default True
+        Width of plot, in pixels. Ignored if `p` is not None.
+    density : bool, default False
         If True, normalized the histogram. Otherwise, base the histogram
         on counts.
     kind : str, default 'step'
@@ -201,13 +245,37 @@ def histogram(data, bins=10, p=None, x_axis_label=None, y_axis_label=None,
     Returns
     -------
     output : Bokeh figure
-        Figure populted with histogram.
+        Figure populated with histogram.
     """
-   # Instantiate Bokeh plot if not already passed in
+    if data is None:
+        raise RuntimeError('Input `data` must be specified.')
+
+    # Instantiate Bokeh plot if not already passed in
     if p is None:
+        if y_axis_label is None:
+            if density:
+                y_axis_label = 'density'
+            else:
+                y_axis_label = 'count'
+
         p = bokeh.plotting.figure(
-            plot_height=plot_height, plot_width=plot_width, 
-            x_axis_label=x_axis_label, y_axis_label=y_axis_label, title=title)
+            plot_height=plot_height, plot_width=plot_width,
+            x_axis_label=x_axis_label, y_axis_label=y_axis_label,
+            title=title, y_range = bokeh.models.DataRange1d(start=0))
+
+    if bins == 'exact':
+        a = np.unique(data)
+        if len(a) == 1:
+            bins = np.array([a[0] - 0.5, a[0] + 0.5])
+        else:
+            bins = np.concatenate(((a[0] - (a[1] - a[0])/2,),
+                                    (a[1:] + a[:-1]) / 2,
+                                    (a[-1] + (a[-1]-a[-2]) / 2,)))
+    elif bins == 'integer':
+        if np.any(data != np.round(data)):
+            raise RuntimeError(
+                        "'integer' bins chosen, but data are not integer.")
+        bins = np.arange(data.min()-1, data.max()+1) + 0.5
 
     # Compute histogram
     f, e = np.histogram(data, bins=bins, density=density)
@@ -231,458 +299,44 @@ def histogram(data, bins=10, p=None, x_axis_label=None, y_axis_label=None,
     return p
 
 
-
-def _ecdf_vals(data, formal=False):
-    """
-    Get x, y, values of an ECDF for plotting.
-
-    Parameters
-    ----------
-    data : ndarray
-        One dimensional Numpay array with data.
-    formal : bool, default False
-        If True, generate x and y values for formal ECDF (staircase). If
-        False, generate x and y values for ECDF as dots.
-
-    Returns
-    -------
-    x : ndarray
-        x-values for plot
-    y : ndarray
-        y-values for plot
-    """
-    x = np.sort(data)
-    y = np.arange(1, len(data)+1) / len(data)
-
-    if formal:
-        # Set up output arrays
-        x_formal = np.empty(2*(len(x) + 1))
-        y_formal = np.empty(2*(len(x) + 1))
-
-        # y-values for steps
-        y_formal[:2] = 0
-        y_formal[2::2] = y
-        y_formal[3::2] = y
-
-        # x- values for steps
-        x_formal[0] = x[0]
-        x_formal[1] = x[0]
-        x_formal[2::2] = x
-        x_formal[3:-1:2] = x[1:]
-        x_formal[-1] = x[-1]
-
-        return x_formal, y_formal
-    else:
-        return x, y
-
-
-def _catplot(df, cats, val, kind, p=None, x_axis_label=None,
-             y_axis_label=None, title=None, plot_height=300, plot_width=400, 
-             palette=['#30a2da', '#fc4f30', '#e5ae38', '#6d904f', '#8b8b8b'],
-             show_legend=False, formal=False, width=0.5, order=None,
-             x_axis_type='linear', y_axis_type='linear', **kwargs):
-    """
-    Generate a plot with a categorical variable on x-axis.
-
-    Parameters
-    ----------
-    df : Pandas DataFrame
-        DataFrame containing tidy data for plotting.
-    cats : hashable or list of hastables
-        Name of column(s) to use as categorical variable (x-axis). This is
-        akin to a kdim in HoloViews.
-    val : hashable
-        Name of column to use as value variable. This is akin to a kdim
-        in HoloViews.
-    kind : str, either 'jitter' or 'box'
-        Kind of plot to make.
-    p : bokeh.plotting.Figure instance, or None (default)
-        If None, create a new figure. Otherwise, populate the existing
-        figure `p`.
-    x_axis_label : str, default None
-        Label for the x-axis. Ignored is `p` is not None.
-    y_axis_label : str, default 'ECDF'
-        Label for the y-axis. Ignored is `p` is not None.
-    title : str, default None
-        Title of the plot. Ignored is `p` is not None.
-    plot_height : int, default 300
-        Height of plot, in pixels. Ignored is `p` is not None.
-    plot_width : int, default 450
-        Width of plot, in pixels. Ignored is `p` is not None.
-    palette : list of strings of hex colors, or since hex string
-        If a list, color palette to use. If a single string representing
-        a hex color, all glyphs are colored with that color. Default is
-        the default color cycle employed by HoloViews.
-    show_legend : bool, default False
-        If True, show legend.
-    width : float, default 0.5
-        Maximum allowable width of jittered points or boxes. A value of
-        1 means that the points or box take the entire space allotted.
-    formal : bool, default False
-        If True, make a plot of a formal ECDF (staircase). If False,
-        plot the ECDF as dots. Only active when `kind` is 'ecdf'.
-    show_legend : bool, default False
-        If True, show a legend. Only active when `kind` is 'ecdf' or
-        'colored_ecdf'.
-    order : list or None
-        If not None, must be a list of unique entries in `df[val]`. The
-        order of the list specifies the order of the boxes. If None,
-        the boxes appear in the order in which they appeared in the
-        inputted DataFrame.
-    x_axis_type : 'linear' or 'log'
-        Type of x-axis.
-    y_axis_type : 'linear' or 'log'
-        Type of y-axis.
-    kwargs
-        Any kwargs to be passed to p.circle when making the jitter plot
-        or to p.quad when making a box plot..
-
-    Returns
-    -------
-    output : bokeh.plotting.Figure instance
-        Plot populated with jitter plot or box plot.
-    """
-    if order is not None:
-        if len(order) > len(set(order)):
-            raise RuntimeError('Nonunique entries in `order`.')
-
-    if formal == True and kind != 'ecdf':
-        warnings.warn('`formal` kwarg not active for ' + kind + '.')
-    if show_legend == True and kind not in ['ecdf', 'colored_ecdf']:
-        warnings.warn('`show_legend` kwarg not active for ' + kind + '.')
-
-    if p is None:
-        if y_axis_label is None and kind not in ['ecdf', 'colored_ecdf']:
-            y_axis_label = val
-            
-        p = bokeh.plotting.figure(
-            plot_height=plot_height, plot_width=plot_width, 
-            x_axis_label=x_axis_label, y_axis_label=y_axis_label,
-            x_axis_type=x_axis_type, y_axis_type=y_axis_type, title=title)
-
-        p_was_None = True
-    else:
-        p_was_None = False
-
-    # Get GroupBy object, sorted if need be
-    if kind == 'colored_ecdf':
-        df_sorted = df.sort_values(by=val)
-        _, df_sorted['__ecdf_y_values'] = _ecdf_vals(df_sorted[val])
-        gb = df_sorted.groupby(cats)
-    else:
-        gb = df.groupby(cats)
-
-    # Number of categorical variables
-    n = len(gb)
-        
-    # If a single string for palette, set color
-    if type(palette) == str:
-        if kind  != 'box' and 'color' not in kwargs:
-            kwargs['color'] = palette
-        elif kind == 'box' and 'fill_color' not in kwargs:
-            kwargs['fill_color'] = palette
-        palette = None
-    elif len(palette) == 1:
-        if kind != 'box' and 'color' not in kwargs:
-            kwargs['color'] = palette[0]
-        elif kind == 'box' and 'fill_color' not in kwargs:
-            kwargs['fill_color'] = palette[0]
-        palette = None
-    else:
-        color_cycle = list(range(len(palette))) * (n // len(palette) + 1)
-
-    # Set box line colors
-    if kind == 'box' and 'line_color' not in kwargs:
-        kwargs['line_color'] = 'black'
-
-    # Set up the iterator over the groupby object
-    if order is None:
-        order = list(gb.groups.keys())
-    gb_iterator = [(order_val, gb.get_group(order_val)) 
-                        for order_val in order]
-
-    labels = {}
-    for i, g in enumerate(gb_iterator):
-        if kind in ['box', 'jitter']:
-            x = i + 0.5
-
-            if type(g[0]) == tuple:
-                labels[x] = ', '.join([str(c) for c in g[0]])
-            else:
-                labels[x] = str(g[0])
-
-        if kind == 'box':
-            data = g[1][val]
-            bottom, middle, top = np.percentile(data, [25, 50, 75])
-            iqr = top - bottom
-            left = x - width / 2
-            right = x + width / 2
-            top_whisker = min(top + 1.5*iqr, data.max())
-            bottom_whisker = max(bottom - 1.5*iqr, data.min())
-            whisk_lr = [x - 0.1, x + 0.1]
-            outliers = data[(data > top_whisker) | (data < bottom_whisker)]
-
-            if palette is None:
-                p.quad(left, right, top, bottom, **kwargs)
-            else:
-                p.quad(left, right, top, bottom,
-                       fill_color=palette[color_cycle[i]], **kwargs)
-            p.line([left, right], [middle]*2, color='black')
-            p.line([x, x], [bottom, bottom_whisker], color='black')
-            p.line([x, x], [top, top_whisker], color='black')
-            p.line(whisk_lr, bottom_whisker, color='black')
-            p.line(whisk_lr, top_whisker, color='black')
-            p.circle([x]*len(outliers), outliers, color='black')
-        elif kind == 'jitter':
-            if palette is None:
-                p.circle(x={'value': x, 
-                            'transform': bokeh.models.Jitter(width=width)},
-                         y=g[1][val],
-                         **kwargs)
-            else:
-                p.circle(x={'value': x, 
-                            'transform': bokeh.models.Jitter(width=width)},
-                         y=g[1][val], 
-                         color=palette[color_cycle[i]],
-                         **kwargs)
-        elif kind in ['ecdf', 'colored_ecdf']:
-            if show_legend:
-                if type(g[0]) == tuple:
-                    legend = ', '.join([str(c) for c in g[0]])
-                else:
-                    legend = str(g[0])
-            else:
-                legend = None
-
-            if kind == 'ecdf':
-                if palette is None:
-                    ecdf(g[1][val],
-                         formal=formal,
-                         p=p, 
-                         legend=legend, 
-                         **kwargs)
-                else:
-                    ecdf(g[1][val],
-                         formal=formal,
-                         p=p,
-                         legend=legend,
-                         color=palette[color_cycle[i]],
-                         **kwargs)
-            elif kind == 'colored_ecdf':
-                if palette is None:
-                    p.circle(g[1][val],
-                             g[1]['__ecdf_y_values'],
-                             legend=legend, 
-                             **kwargs)
-                else:
-                    p.circle(g[1][val],
-                             g[1]['__ecdf_y_values'],
-                             legend=legend, 
-                             color=palette[color_cycle[i]],
-                             **kwargs)
-   
-    if kind in ['box', 'jitter']:
-        p.xaxis.ticker = np.arange(len(gb)) + 0.5
-        p.xaxis.major_label_overrides = labels
-        p.xgrid.visible = False
-        
-    if kind in ['ecdf', 'colored_ecdf']:
-        p.legend.location = 'bottom_right'
-
-    return p
-
-
-def ecdf_collection(
-        df, cats, val, p=None, x_axis_label=None, y_axis_label=None,
-        title=None, plot_height=300, plot_width=400, 
-        palette=['#30a2da', '#fc4f30', '#e5ae38', '#6d904f', '#8b8b8b'],
-        show_legend=True, formal=False, order=None, x_axis_type='linear',
-        **kwargs):
-    """
-    Make a collection of ECDFs from a tidy DataFrame.
-
-    Parameters
-    ----------
-    df : Pandas DataFrame
-        DataFrame containing tidy data for plotting.
-    cats : hashable or list of hastables
-        Name of column(s) to use as categorical variable (x-axis). This is
-        akin to a kdim in HoloViews.
-    val : hashable
-        Name of column to use as value variable. This is akin to a kdim
-        in HoloViews.
-    p : bokeh.plotting.Figure instance, or None (default)
-        If None, create a new figure. Otherwise, populate the existing
-        figure `p`.
-    x_axis_label : str, default None
-        Label for the x-axis. Ignored is `p` is not None.
-    y_axis_label : str, default 'ECDF'
-        Label for the y-axis. Ignored is `p` is not None.
-    title : str, default None
-        Title of the plot. Ignored is `p` is not None.
-    plot_height : int, default 300
-        Height of plot, in pixels. Ignored is `p` is not None.
-    plot_width : int, default 450
-        Width of plot, in pixels. Ignored is `p` is not None.
-    palette : list of strings of hex colors, or since hex string
-        If a list, color palette to use. If a single string representing
-        a hex color, all glyphs are colored with that color. Default is
-        the default color cycle employed by HoloViews.
-    show_legend : bool, default False
-        If True, show legend.
-    formal : bool, default False
-        If True, make a plot of a formal ECDF (staircase). If False,
-        plot the ECDF as dots.
-    order : list or None
-        If not None, must be a list of unique entries in `df[val]`. The
-        order of the list specifies the order of the boxes. If None,
-        the boxes appear in the order in which they appeared in the
-        inputted DataFrame.
-    x_axis_type : 'linear' or 'log'
-        Type of x-axis.
-    kwargs
-        Any kwargs to be passed to p.circle when making the ECDF.
-
-    Returns
-    -------
-    output : bokeh.plotting.Figure instance
-        Plot populated with ECDFs.
-    """
-    if x_axis_label is None:
-        x_axis_label = val
-    if y_axis_label is None:
-        y_axis_label = 'ECDF'
-
-    return _catplot(df,
-                    cats, 
-                    val, 
-                    'ecdf', 
-                    p=p, 
-                    x_axis_label=x_axis_label,
-                    y_axis_label=y_axis_label,
-                    title=title,
-                    plot_height=plot_height, 
-                    plot_width=plot_width, 
-                    palette=palette,
-                    show_legend=show_legend,
-                    formal=formal,
-                    order=order, 
-                    x_axis_type=x_axis_type,
-                    **kwargs)
-
-
-def colored_ecdf(
-        df, cats, val, p=None, x_axis_label=None, y_axis_label=None,
-        title=None, plot_height=300, plot_width=400, 
-        palette=['#30a2da', '#fc4f30', '#e5ae38', '#6d904f', '#8b8b8b'],
-        show_legend=True, order=None, x_axis_type='linear', **kwargs):
-    """
-    Make an ECDF where points are colored by categorial variables.
-
-    Parameters
-    ----------
-    df : Pandas DataFrame
-        DataFrame containing tidy data for plotting.
-    cats : hashable or list of hastables
-        Name of column(s) to use as categorical variable (x-axis). This is
-        akin to a kdim in HoloViews.
-    val : hashable
-        Name of column to use as value variable. This is akin to a kdim
-        in HoloViews.
-    p : bokeh.plotting.Figure instance, or None (default)
-        If None, create a new figure. Otherwise, populate the existing
-        figure `p`.
-    x_axis_label : str, default None
-        Label for the x-axis. Ignored is `p` is not None.
-    y_axis_label : str, default 'ECDF'
-        Label for the y-axis. Ignored is `p` is not None.
-    title : str, default None
-        Title of the plot. Ignored is `p` is not None.
-    plot_height : int, default 300
-        Height of plot, in pixels. Ignored is `p` is not None.
-    plot_width : int, default 450
-        Width of plot, in pixels. Ignored is `p` is not None.
-    palette : list of strings of hex colors, or since hex string
-        If a list, color palette to use. If a single string representing
-        a hex color, all glyphs are colored with that color. Default is
-        the default color cycle employed by HoloViews.
-    show_legend : bool, default False
-        If True, show legend.
-    order : list or None
-        If not None, must be a list of unique entries in `df[val]`. The
-        order of the list specifies the order of the boxes. If None,
-        the boxes appear in the order in which they appeared in the
-        inputted DataFrame.
-    x_axis_type : 'linear' or 'log'
-        Type of x-axis.
-    kwargs
-        Any kwargs to be passed to p.circle when making the ECDF.
-
-    Returns
-    -------
-    output : bokeh.plotting.Figure instance
-        Plot populated with a colored ECDF.
-    """
-    if x_axis_label is None:
-        x_axis_label = val
-    if y_axis_label is None:
-        y_axis_label = 'ECDF'
-    if 'formal' in kwargs:
-        raise RuntimeError('`formal` kwarg not allowed for colored ECDF.')
-
-    return _catplot(df,
-                    cats, 
-                    val, 
-                    'colored_ecdf', 
-                    p=p, 
-                    x_axis_label=x_axis_label,
-                    y_axis_label=y_axis_label,
-                    title=title,
-                    plot_height=plot_height, 
-                    plot_width=plot_width, 
-                    palette=palette,
-                    show_legend=show_legend,
-                    formal=False,
-                    order=order, 
-                    x_axis_type=x_axis_type,
-                    **kwargs)
-
-
-def jitter(df, cats, val, p=None, x_axis_label=None, y_axis_label=None, 
-           title=None, plot_height=300, plot_width=400, 
-           palette=['#30a2da', '#fc4f30', '#e5ae38', '#6d904f', '#8b8b8b'],
-           jitter_width=0.5, order=None, **kwargs):
+def jitter(data=None, cats=None, val=None, p=None, horizontal=False,
+           x_axis_label=None, y_axis_label=None, title=None, plot_height=300,
+           plot_width=400,
+           palette=['#4e79a7', '#f28e2b', '#e15759', '#76b7b2', '#59a14f',
+                    '#edc948', '#b07aa1', '#ff9da7', '#9c755f', '#bab0ac'],
+           width=0.4, order=None, val_axis_type='linear', show_legend=False,
+           color_column=None, tooltips=None, **kwargs):
     """
     Make a jitter plot from a tidy DataFrame.
 
     Parameters
     ----------
-    df : Pandas DataFrame
+    data : Pandas DataFrame
         DataFrame containing tidy data for plotting.
     cats : hashable or list of hastables
-        Name of column(s) to use as categorical variable (x-axis). This is
-        akin to a kdim in HoloViews.
+        Name of column(s) to use as categorical variable.
     val : hashable
-        Name of column to use as value variable. This is akin to a kdim
-        in HoloViews.
+        Name of column to use as value variable.
     p : bokeh.plotting.Figure instance, or None (default)
         If None, create a new figure. Otherwise, populate the existing
         figure `p`.
+    horizontal : bool, default False
+        If true, the categorical axis is the vertical axis.
     x_axis_label : str, default None
-        Label for the x-axis. Ignored is `p` is not None.
+        Label for the x-axis. Ignored if `p` is not None.
     y_axis_label : str, default 'ECDF'
-        Label for the y-axis. Ignored is `p` is not None.
+        Label for the y-axis. Ignored if `p` is not None.
     title : str, default None
-        Title of the plot. Ignored is `p` is not None.
+        Title of the plot. Ignored if `p` is not None.
     plot_height : int, default 300
-        Height of plot, in pixels. Ignored is `p` is not None.
+        Height of plot, in pixels. Ignored if `p` is not None.
     plot_width : int, default 450
-        Width of plot, in pixels. Ignored is `p` is not None.
-    palette : list of strings of hex colors, or since hex string
+        Width of plot, in pixels. Ignored if `p` is not None.
+    palette : list of strings of hex colors, or single hex string
         If a list, color palette to use. If a single string representing
         a hex color, all glyphs are colored with that color. Default is
-        the default color cycle employed by HoloViews.
-    jitter_width : float, default 0.5
+        the default color cycle employed by Altair.
+    width : float, default 0.4
         Maximum allowable width of jittered points. A value of 1 means
         that the points take the entire space allotted.
     order : list or None
@@ -690,6 +344,16 @@ def jitter(df, cats, val, p=None, x_axis_label=None, y_axis_label=None,
         order of the list specifies the order of the boxes. If None,
         the boxes appear in the order in which they appeared in the
         inputted DataFrame.
+    val_axis_type : str, default 'linear'
+        Type of scaling for the quantitative axis, wither 'linear' or
+        'log'.
+    show_legend : bool, default False
+        If True, display legend.
+    color_column : str, default None
+        Column of `data` to use in determining color of glyphs. If None,
+        then `cats` is used.
+    tooltips : list of Bokeh tooltips
+        Tooltips to add to the plot.
     kwargs
         Any kwargs to be passed to p.circle when making the jitter plot.
 
@@ -698,67 +362,129 @@ def jitter(df, cats, val, p=None, x_axis_label=None, y_axis_label=None,
     output : bokeh.plotting.Figure instance
         Plot populated with jitter plot.
     """
-    return _catplot(df,
-                    cats, 
-                    val, 
-                    'jitter', 
-                    p=p, 
-                    x_axis_label=x_axis_label,
-                    y_axis_label=y_axis_label,
-                    title=title,
-                    plot_height=plot_height, 
-                    plot_width=plot_width, 
-                    palette=palette, 
-                    width=jitter_width, 
-                    show_legend=False,
-                    order=order, 
-                    **kwargs)
+
+    cols = _check_cat_input(data, cats, val, color_column, tooltips,
+                            palette, kwargs)
+
+    grouped = data.groupby(cats)
+
+    if p is None:
+        p, factors, color_factors = _cat_figure(data,
+                                                grouped,
+                                                plot_height,
+                                                plot_width,
+                                                x_axis_label,
+                                                y_axis_label,
+                                                title,
+                                                order,
+                                                color_column,
+                                                tooltips,
+                                                horizontal,
+                                                val_axis_type)
+    else:
+        _, factors, color_factors = _get_cat_range(data,
+                                                   grouped,
+                                                   order,
+                                                   color_column,
+                                                   horizontal)
+        if tooltips is not None:
+            p.add_tools(bokeh.models.HoverTool(tooltips=tooltips))
+
+    if 'color' not in kwargs:
+        if color_column is None:
+            color_column = 'cat'
+        kwargs['color'] = bokeh.transform.factor_cmap(color_column,
+                                                      palette=palette,
+                                                      factors=color_factors)
+
+    source = _cat_source(data, cats, cols, color_column)
+
+    if show_legend:
+        kwargs['legend'] = '__label'
+
+    if horizontal:
+        p.circle(source=source,
+                 x=val,
+                 y=bokeh.transform.jitter('cat',
+                                          width=width,
+                                          range=p.y_range),
+                 **kwargs)
+        p.ygrid.grid_line_color = None
+    else:
+        p.circle(source=source,
+                 y=val,
+                 x=bokeh.transform.jitter('cat',
+                                          width=width,
+                                          range=p.x_range),
+                 **kwargs)
+        p.xgrid.grid_line_color = None
+
+    return p
 
 
-def boxwhisker(df, cats, val, p=None, x_axis_label=None, y_axis_label=None, 
-               title=None, plot_height=300, plot_width=400, 
-               palette=['#30a2da', '#fc4f30', '#e5ae38', '#6d904f', '#8b8b8b'],
-               box_width=0.5, order=None, **kwargs):
+def box(data=None, cats=None, val=None, p=None, horizontal=False,
+        x_axis_label=None, y_axis_label=None, title=None, plot_height=300,
+        plot_width=400,
+        palette=['#4e79a7', '#f28e2b', '#e15759', '#76b7b2', '#59a14f',
+                 '#edc948', '#b07aa1', '#ff9da7', '#9c755f', '#bab0ac'],
+        width=0.4, order=None, tooltips=None, val_axis_type='linear',
+        display_outliers=True, box_kwargs=None, whisker_kwargs=None,
+        outlier_kwargs=None):
     """
     Make a box-and-whisker plot from a tidy DataFrame.
 
     Parameters
     ----------
-    df : Pandas DataFrame
+    data : Pandas DataFrame
         DataFrame containing tidy data for plotting.
     cats : hashable or list of hastables
-        Name of column(s) to use as categorical variable (x-axis). This is
-        akin to a kdim in HoloViews.
+        Name of column(s) to use as categorical variable.
     val : hashable
-        Name of column to use as value variable. This is akin to a kdim
-        in HoloViews.
+        Name of column to use as value variable.
     p : bokeh.plotting.Figure instance, or None (default)
         If None, create a new figure. Otherwise, populate the existing
         figure `p`.
     x_axis_label : str, default None
-        Label for the x-axis. Ignored is `p` is not None.
+        Label for the x-axis. Ignored if `p` is not None.
     y_axis_label : str, default 'ECDF'
-        Label for the y-axis. Ignored is `p` is not None.
+        Label for the y-axis. Ignored if `p` is not None.
     title : str, default None
-        Title of the plot. Ignored is `p` is not None.
+        Title of the plot. Ignored if `p` is not None.
     plot_height : int, default 300
-        Height of plot, in pixels. Ignored is `p` is not None.
+        Height of plot, in pixels. Ignored if `p` is not None.
     plot_width : int, default 450
-        Width of plot, in pixels. Ignored is `p` is not None.
-    palette : list of strings of hex colors, or since hex string
+        Width of plot, in pixels. Ignored if `p` is not None.
+    palette : list of strings of hex colors, or single hex string
         If a list, color palette to use. If a single string representing
         a hex color, all boxes are colored with that color. Default is
-        the default color cycle employed by HoloViews.
-    box_width : float, default 0.5
+        the default color cycle employed by Altair.
+    width : float, default 0.4
         Maximum allowable width of the boxes. A value of 1 means that
         the boxes take the entire space allotted.
+    val_axis_type : str, default 'linear'
+        Type of scaling for the quantitative axis, wither 'linear' or
+        'log'.
+    show_legend : bool, default False
+        If True, display legend.
+    tooltips : list of Bokeh tooltips
+        Tooltips to add to the plot.
     order : list or None
         If not None, must be a list of unique entries in `df[val]`. The
         order of the list specifies the order of the boxes. If None,
         the boxes appear in the order in which they appeared in the
         inputted DataFrame.
-    kwargs
-        Any kwargs to be passed to p.quad when making the plot.
+    display_outliers : bool, default True
+        If True, display outliers, otherwise suppress them. This should
+        only be False when making an overlay with a jitter plot.
+    box_kwargs : dict, default None
+        A dictionary of kwargs to be passed into `p.hbar()` or
+        `p.vbar()` when constructing the boxes for the box plot.
+    whisker_kwargs : dict, default None
+        A dictionary of kwargs to be passed into `p.segment()`
+        when constructing the whiskers for the box plot.
+    outlier_kwargs : dict, default None
+        A dictionary of kwargs to be passed into `p.circle()`
+        when constructing the outliers for the box plot.
 
     Returns
     -------
@@ -769,59 +495,519 @@ def boxwhisker(df, cats, val, p=None, x_axis_label=None, y_axis_label=None,
     -----
     .. Uses the Tukey convention for box plots. The top and bottom of
        the box are respectively the 75th and 25th percentiles of the
-       data. The line in the middle of the box is the median. The 
+       data. The line in the middle of the box is the median. The
        top whisker extends to the lesser of the largest data point and
        the top of the box plus 1.5 times the interquartile region (the
-       height of the box). The bottom whisker extends to the greater of 
+       height of the box). The bottom whisker extends to the greater of
        the smallest data point and the bottom of the box minus 1.5 times
        the interquartile region. Data points not between the ends of the
        whiskers are considered outliers and are plotted as individual
        points.
     """
-    return _catplot(df,
-                    cats, 
-                    val, 
-                    'box', 
-                    p=p, 
-                    x_axis_label=x_axis_label,
-                    y_axis_label=y_axis_label,
-                    title=title,
-                    plot_height=plot_height, 
-                    plot_width=plot_width, 
-                    palette=palette,
-                    width=box_width, 
-                    show_legend=False,
-                    order=order, 
-                    **kwargs)
+    cols = _check_cat_input(data, cats, val, None, tooltips, palette,
+                            box_kwargs)
+
+    if whisker_kwargs is None:
+        whisker_kwargs = {'line_color': 'black'}
+    elif type(whisker_kwargs) != dict:
+        raise RuntimeError('`whisker_kwargs` must be a dict.')
+
+    if outlier_kwargs is None:
+        outlier_kwargs = dict()
+    elif type(outlier_kwargs) != dict:
+        raise RuntimeError('`outlier_kwargs` must be a dict.')
+
+    if box_kwargs is None:
+        box_kwargs = {'line_color': 'black'}
+    elif type(box_kwargs) != dict:
+        raise RuntimeError('`box_kwargs` must be a dict.')
+
+    grouped = data.groupby(cats)
+
+    if p is None:
+        p, factors, color_factors = _cat_figure(data,
+                                                grouped,
+                                                plot_height,
+                                                plot_width,
+                                                x_axis_label,
+                                                y_axis_label,
+                                                title,
+                                                order,
+                                                None,
+                                                tooltips,
+                                                horizontal,
+                                                val_axis_type)
+    else:
+        if tooltips is not None:
+            p.add_tools(bokeh.models.HoverTool(tooltips=tooltips))
+
+        _, factors, color_factors = _get_cat_range(data,
+                                                   grouped,
+                                                   order,
+                                                   None,
+                                                   horizontal)
+
+    source_box, source_outliers = _box_source(data, cats, val, cols)
+
+    if 'fill_color' not in box_kwargs:
+        box_kwargs['fill_color'] = bokeh.transform.factor_cmap('cat', palette=palette, factors=factors)
+    if 'line_color' not in box_kwargs:
+        box_kwargs['line_color'] = 'black'
+
+    if 'color' in outlier_kwargs:
+        if 'line_color' in outlier_kwargs or 'fill_color' in outlier_kwargs:
+            raise RuntimeError('If `color` is in `outlier_kwargs`, `line_color` and `fill_color` cannot be.')
+    else:
+        if 'fill_color' not in outlier_kwargs:
+            outlier_kwargs['fill_color'] = bokeh.transform.factor_cmap(
+                                    'cat', palette=palette, factors=factors)
+        if 'line_color' not in outlier_kwargs:
+            outlier_kwargs['line_color'] = bokeh.transform.factor_cmap(
+                                    'cat', palette=palette, factors=factors)
+
+    if horizontal:
+        p.segment(source=source_box,
+                  y0='cat',
+                  y1='cat',
+                  x0='top',
+                  x1='top_whisker',
+                  **whisker_kwargs)
+        p.segment(source=source_box,
+                  y0='cat',
+                  y1='cat',
+                  x0='bottom',
+                  x1='bottom_whisker',
+                  **whisker_kwargs)
+        p.hbar(source=source_box,
+               y='cat',
+               left='top_whisker',
+               right='top_whisker',
+               height=width/4,
+               **whisker_kwargs)
+        p.hbar(source=source_box,
+               y='cat',
+               left='bottom_whisker',
+               right='bottom_whisker',
+               height=width/4,
+               **whisker_kwargs)
+        p.hbar(source=source_box,
+               y='cat',
+               left='bottom',
+               right='top',
+               height=width,
+               **box_kwargs)
+        p.hbar(source=source_box,
+               y='cat',
+               left='middle',
+               right='middle',
+               height=width,
+               **box_kwargs)
+        if display_outliers:
+            p.circle(source=source_outliers,
+                     y='cat',
+                     x=val,
+                     **outlier_kwargs)
+        p.ygrid.grid_line_color = None
+    else:
+        p.segment(source=source_box,
+                  x0='cat',
+                  x1='cat',
+                  y0='top',
+                  y1='top_whisker',
+                  **whisker_kwargs)
+        p.segment(source=source_box,
+                  x0='cat',
+                  x1='cat',
+                  y0='bottom',
+                  y1='bottom_whisker',
+                  **whisker_kwargs)
+        p.vbar(source=source_box,
+               x='cat',
+               bottom='top_whisker',
+               top='top_whisker',
+               width=width/4,
+               **whisker_kwargs)
+        p.vbar(source=source_box,
+               x='cat',
+               bottom='bottom_whisker',
+               top='bottom_whisker',
+               width=width/4,
+               **whisker_kwargs)
+        p.vbar(source=source_box,
+               x='cat',
+               bottom='bottom',
+               top='top',
+               width=width,
+               **box_kwargs)
+        p.vbar(source=source_box,
+               x='cat',
+               bottom='middle',
+               top='middle',
+               width=width,
+               **box_kwargs)
+        if display_outliers:
+            p.circle(source=source_outliers,
+                     x='cat',
+                     y=val,
+                     **outlier_kwargs)
+        p.xgrid.grid_line_color = None
+
+    return p
 
 
-def _display_clicks(div, attributes=[],
-                    style='float:left;clear:left;font_size=0.5pt'):
-    """Build a suitable CustomJS to display the current event
-    in the div model."""
-    return bokeh.models.CustomJS(args=dict(div=div), code="""
-        var attrs = %s; var args = [];
-        for (var i=0; i<attrs.length; i++ ) {
-            args.push(Number(cb_obj[attrs[i]]).toFixed(4));
-        }
-        var line = "<span style=%r>[" + args.join(", ") + "], </span>\\n";
-        var text = div.text.concat(line);
-        var lines = text.split("\\n")
-        if ( lines.length > 35 ) { lines.shift(); }
-        div.text = lines.join("\\n");
-    """ % (attributes, style))
+def ecdf_collection(data=None, cats=None, val=None, p=None,
+                    complementary=False, formal=False,
+                    x_axis_label=None, y_axis_label=None, title=None,
+                    plot_height=300, plot_width=400,
+                    palette=['#4e79a7', '#f28e2b', '#e15759', '#76b7b2',
+                             '#59a14f', '#edc948', '#b07aa1', '#ff9da7',
+                             '#9c755f', '#bab0ac'],
+                    order=None, show_legend=True, tooltips=None,
+                    val_axis_type='linear', ecdf_axis_type='linear',
+                    **kwargs):
+    """
+    Parameters
+    ----------
+    data : Pandas DataFrame
+        DataFrame containing tidy data for plotting.
+    cats : hashable or list of hastables
+        Name of column(s) to use as categorical variable (x-axis).
+    val : hashable
+        Name of column to use as value variable.
+    p : bokeh.plotting.Figure instance, or None (default)
+        If None, create a new figure. Otherwise, populate the existing
+        figure `p`.
+    complementary : bool, default False
+        If True, plot the empirical complementary cumulative
+        distribution functon.
+    formal : bool, default False
+        If True, make a plot of a formal ECDF (staircase). If False,
+        plot the ECDF as dots.
+    x_axis_label : str, default None
+        Label for the x-axis. Ignored if `p` is not None.
+    y_axis_label : str, default 'ECDF'
+        Label for the y-axis. Ignored if `p` is not None.
+    title : str, default None
+        Title of the plot. Ignored if `p` is not None.
+    plot_height : int, default 300
+        Height of plot, in pixels. Ignored if `p` is not None.
+    plot_width : int, default 450
+        Width of plot, in pixels. Ignored if `p` is not None.
+    palette : list of strings of hex colors, or single hex string
+        If a list, color palette to use. If a single string representing
+        a hex color, all glyphs are colored with that color. Default is
+        the default color cycle employed by Altair.
+    show_legend : bool, default False
+        If True, show legend.
+    order : list or None
+        If not None, must be a list of unique entries in `df[val]`. The
+        order of the list specifies the order of the boxes. If None,
+        the boxes appear in the order in which they appeared in the
+        inputted DataFrame.
+    tooltips : list of 2-tuples
+        Specification for tooltips. Ignored if `formal` is True.
+    show_legend : bool, default False
+        If True, show a legend.
+    val_axis_type : 'linear' or 'log'
+        Type of x-axis.
+    ecdf_axis_type : 'linear' or 'log'
+        Type of y-axis.
+    kwargs
+        Any kwargs to be passed to `p.circle()` or `p.line()` when
+        making the plot.
+
+    Returns
+    -------
+    output : bokeh.plotting.Figure instance
+        Plot populated with jitter plot or box plot.
+    if formal and tooltips is not None:
+        raise RuntimeError('tooltips not possible for formal ECDFs.')
+    """
+    cols = _check_cat_input(data, cats, val, None, tooltips, palette, kwargs)
+
+    if complementary:
+        y = '__ECCDF'
+        if y_axis_label is None:
+            y_axis_label = 'ECCDF'
+    else:
+        y = '__ECDF'
+        if y_axis_label is None:
+            y_axis_label = 'ECDF'
+
+    if x_axis_label is None:
+        x_axis_label = val
+
+
+    if p is None:
+        p = bokeh.plotting.figure(plot_height=plot_height,
+                                  plot_width=plot_width,
+                                  x_axis_label=x_axis_label,
+                                  y_axis_label=y_axis_label,
+                                  x_axis_type=val_axis_type,
+                                  y_axis_type=ecdf_axis_type,
+                                  title=title)
+
+    if formal:
+        p = _ecdf_collection_formal(data,
+                                    val,
+                                    cats,
+                                    complementary,
+                                    order,
+                                    palette,
+                                    show_legend,
+                                    p,
+                                    **kwargs)
+    else:
+        p = _ecdf_collection_dots(data,
+                                  val,
+                                  cats,
+                                  cols,
+                                  complementary,
+                                  order,
+                                  palette,
+                                  show_legend,
+                                  y,
+                                  p,
+                                  **kwargs)
+
+    if not formal and tooltips is not None:
+        p.add_tools(bokeh.models.HoverTool(tooltips=tooltips))
+
+    if show_legend:
+        if complementary:
+            p.legend.location = 'top_right'
+        else:
+            p.legend.location = 'bottom_right'
+
+    return p
+
+
+def colored_ecdf(data=None, cats=None, val=None, p=None, complementary=False,
+                 x_axis_label=None, y_axis_label=None, title=None,
+                 plot_height=300, plot_width=400,
+                 palette=['#4e79a7', '#f28e2b', '#e15759', '#76b7b2',
+                          '#59a14f', '#edc948', '#b07aa1', '#ff9da7',
+                          '#9c755f', '#bab0ac'],
+                 order=None, show_legend=True, tooltips=None,
+                 val_axis_type='linear', ecdf_axis_type='linear', **kwargs):
+    """
+    Parameters
+    ----------
+    data : Pandas DataFrame
+        DataFrame containing tidy data for plotting.
+    cats : hashable or list of hashables
+        Name of column(s) to use as categorical variable (x-axis).
+    val : hashable
+        Name of column to use as value variable.
+    p : bokeh.plotting.Figure instance, or None (default)
+        If None, create a new figure. Otherwise, populate the existing
+        figure `p`.
+    complementary : bool, default False
+        If True, plot the empirical complementary cumulative
+        distribution functon.
+    x_axis_label : str, default None
+        Label for the x-axis. Ignored if `p` is not None.
+    y_axis_label : str, default 'ECDF'
+        Label for the y-axis. Ignored if `p` is not None.
+    title : str, default None
+        Title of the plot. Ignored if `p` is not None.
+    plot_height : int, default 300
+        Height of plot, in pixels. Ignored if `p` is not None.
+    plot_width : int, default 450
+        Width of plot, in pixels. Ignored if `p` is not None.
+    palette : list of strings of hex colors, or single hex string
+        If a list, color palette to use. If a single string representing
+        a hex color, all glyphs are colored with that color. Default is
+        the default color cycle employed by Altair.
+    show_legend : bool, default False
+        If True, show legend.
+    order : list or None
+        If not None, must be a list of unique entries in `df[cat]`. The
+        order of the list specifies the order of the colors. If None,
+        the colors appear in the order in which they appeared in the
+        inputted DataFrame.
+    tooltips : list of 2-tuples
+        Specification for tooltips.
+    show_legend : bool, default False
+        If True, show a legend.
+    val_axis_type : 'linear' or 'log'
+        Type of x-axis.
+    ecdf_axis_type : 'linear' or 'log'
+        Type of y-axis.
+    kwargs
+        Any kwargs to be passed to `p.circle()` when making the plot.
+
+    Returns
+    -------
+    output : bokeh.plotting.Figure instance
+        Plot populated with jitter plot or box plot.
+    if formal and tooltips is not None:
+        raise RuntimeError('tooltips not possible for formal ECDFs.')
+    """
+    cols = _check_cat_input(data, cats, val, None, tooltips, palette, kwargs)
+
+    if complementary:
+        y = '__ECCDF'
+        if y_axis_label is None:
+            y_axis_label = 'ECCDF'
+    else:
+        y = '__ECDF'
+        if y_axis_label is None:
+            y_axis_label = 'ECDF'
+
+    df = data.copy()
+    df[y] = df[val].transform(_ecdf_y, complementary=complementary)
+    cols += [y]
+    source = _cat_source(df, cats, cols, None)
+    _, _, color_factors = _get_cat_range(df,
+                                         df.groupby(cats),
+                                         order,
+                                         None,
+                                         False)
+
+    if 'color' not in kwargs:
+        kwargs['color'] = bokeh.transform.factor_cmap('cat',
+                                                    palette=palette,
+                                                    factors=color_factors)
+
+    if show_legend:
+        kwargs['legend'] = '__label'
+
+    if p is None:
+        p = bokeh.plotting.figure(plot_height=plot_height,
+                                  plot_width=plot_width,
+                                  x_axis_label=x_axis_label,
+                                  y_axis_label=y_axis_label,
+                                  x_axis_type=val_axis_type,
+                                  y_axis_type=ecdf_axis_type,
+                                  title=title,
+                                  tooltips=tooltips)
+
+    p.circle(source=source,
+             x=val,
+             y=y,
+             **kwargs)
+
+    if show_legend:
+        if complementary:
+            p.legend.location = 'top_right'
+        else:
+            p.legend.location = 'bottom_right'
+
+    return p
+
+
+def colored_scatter(data=None, cats=None, x=None, y=None, p=None,
+                 x_axis_label=None, y_axis_label=None, title=None,
+                 plot_height=300, plot_width=400,
+                 palette=['#4e79a7', '#f28e2b', '#e15759', '#76b7b2',
+                          '#59a14f', '#edc948', '#b07aa1', '#ff9da7',
+                          '#9c755f', '#bab0ac'],
+                 order=None, show_legend=True, tooltips=None,
+                 x_axis_type='linear', y_axis_type='linear', **kwargs):
+    """
+    Parameters
+    ----------
+    data : Pandas DataFrame
+        DataFrame containing tidy data for plotting.
+    cats : hashable or list of hashables
+        Name of column(s) to use as categorical variable (x-axis).
+    x : hashable
+        Name of column to use as x-axis.
+    y : hashable
+        Name of column to use as y-axis.
+    p : bokeh.plotting.Figure instance, or None (default)
+        If None, create a new figure. Otherwise, populate the existing
+        figure `p`.
+    x_axis_label : str, default None
+        Label for the x-axis. Ignored if `p` is not None.
+    y_axis_label : str, default 'ECDF'
+        Label for the y-axis. Ignored if `p` is not None.
+    title : str, default None
+        Title of the plot. Ignored if `p` is not None.
+    plot_height : int, default 300
+        Height of plot, in pixels. Ignored if `p` is not None.
+    plot_width : int, default 450
+        Width of plot, in pixels. Ignored if `p` is not None.
+    palette : list of strings of hex colors, or single hex string
+        If a list, color palette to use. If a single string representing
+        a hex color, all glyphs are colored with that color. Default is
+        the default color cycle employed by Altair.
+    show_legend : bool, default False
+        If True, show legend.
+    order : list or None
+        If not None, must be a list of unique entries in `df[cat]`. The
+        order of the list specifies the order of the colors. If None,
+        the colors appear in the order in which they appeared in the
+        inputted DataFrame.
+    tooltips : list of 2-tuples
+        Specification for tooltips.
+    show_legend : bool, default False
+        If True, show a legend.
+    x_axis_type : 'linear' or 'log'
+        Type of x-axis.
+    y_axis_type : 'linear' or 'log'
+        Type of y-axis.
+    kwargs
+        Any kwargs to be passed to `p.circle()` when making the plot.
+
+    Returns
+    -------
+    output : bokeh.plotting.Figure instance
+        Plot populated with jitter plot or box plot.
+    if formal and tooltips is not None:
+        raise RuntimeError('tooltips not possible for formal ECDFs.')
+    """
+    cols = _check_cat_input(data, cats, x, None, tooltips, palette, kwargs)
+    if y in data:
+        cols += [y]
+    else:
+        raise RuntimeError(f'Column {y} not in inputted dataframe.')
+
+    df = data.copy()
+    source = _cat_source(df, cats, cols, None)
+    _, _, color_factors = _get_cat_range(df,
+                                         df.groupby(cats),
+                                         order,
+                                         None,
+                                         False)
+
+    if 'color' not in kwargs:
+        kwargs['color'] = bokeh.transform.factor_cmap('cat',
+                                                    palette=palette,
+                                                    factors=color_factors)
+
+    if show_legend:
+        kwargs['legend'] = '__label'
+
+    if p is None:
+        p = bokeh.plotting.figure(plot_height=plot_height,
+                                  plot_width=plot_width,
+                                  x_axis_label=x_axis_label,
+                                  y_axis_label=y_axis_label,
+                                  x_axis_type=x_axis_type,
+                                  y_axis_type=y_axis_type,
+                                  title=title,
+                                  tooltips=tooltips)
+
+    p.circle(source=source,
+             x=x,
+             y=y,
+             **kwargs)
+
+    return p
 
 
 def imshow(im, color_mapper=None, plot_height=400, plot_width=None,
            length_units='pixels', interpixel_distance=1.0,
            x_range=None, y_range=None, colorbar=False,
-           no_ticks=False, x_axis_label=None, y_axis_label=None, 
+           no_ticks=False, x_axis_label=None, y_axis_label=None,
            title=None, flip=True, return_im=False,
            saturate_channels=True, min_intensity=None,
-           max_intensity=None, record_clicks=False):
+           max_intensity=None, display_clicks=False, record_clicks=False):
     """
     Display an image in a Bokeh figure.
-    
+
     Parameters
     ----------
     im : Numpy array
@@ -829,13 +1015,17 @@ def imshow(im, color_mapper=None, plot_height=400, plot_width=None,
         dimensions are pixel values. Last dimension can be of length
         1, 2, or 3, which specify colors.
     color_mapper : str or bokeh.models.LinearColorMapper, default None
-        If `im` is an intensity image, `color_mapper` is a mapping of 
+        If `im` is an intensity image, `color_mapper` is a mapping of
         intensity to color. If None, default is 256-level Viridis.
         If `im` is a color image, then `color_mapper` can either be
         'rgb' or 'cmy' (default), for RGB or CMY merge of channels.
     plot_height : int
-        Height of the plot in pixels. The width is scaled so that the 
+        Height of the plot in pixels. The width is scaled so that the
         x and y distance between pixels is the same.
+    plot_width : int or None (default)
+        If None, the width is scaled so that the x and y distance
+        between pixels is approximately the same. Otherwise, the width
+        of the plot in pixels.
     length_units : str, default 'pixels'
         The units of length in the image.
     interpixel_distance : float, default 1.0
@@ -848,6 +1038,12 @@ def imshow(im, color_mapper=None, plot_height=400, plot_width=None,
         If True, include a colorbar.
     no_ticks : bool, default False
         If True, no ticks are displayed. See note below.
+    x_axis_label : str, default None
+        Label for the x-axis. If None, labeled with `length_units`.
+    y_axis_label : str, default None
+        Label for the y-axis. If None, labeled with `length_units`.
+    title : str, default None
+        The title of the plot.
     flip : bool, default True
         If True, flip image so it displays right-side up. This is
         necessary because traditionally images have their 0,0 pixel
@@ -855,23 +1051,30 @@ def imshow(im, color_mapper=None, plot_height=400, plot_width=None,
     return_im : bool, default False
         If True, return the GlyphRenderer instance of the image being
         displayed.
+    saturate_channels : bool, default True
+        If True, each of the channels have their displayed pixel values
+        extended to range from 0 to 255 to show the full dynamic range.
     min_intensity : int or float, default None
         Minimum possible intensity of a pixel in the image. If None,
         the image is scaled based on the dynamic range in the image.
     max_intensity : int or float, default None
         Maximum possible intensity of a pixel in the image. If None,
         the image is scaled based on the dynamic range in the image.
+    display_clicks : bool, default False
+        If True, display clicks to the right of the plot using
+        JavaScript. The clicks are not recorded nor stored, just
+        printed. If you want to store the clicks, use the
+        `record_clicks()` or `draw_rois()` functions.
     record_clicks : bool, default False
-        If True, enables recording of clicks on the image. The clicks are
-        displayed in copy-able text next to the displayed figure. 
-        
+        Deprecated. Use `display_clicks`.
+
     Returns
     -------
     p : bokeh.plotting.figure instance
         Bokeh plot with image displayed.
     im : bokeh.models.renderers.GlyphRenderer instance (optional)
         The GlyphRenderer instance of the image being displayed. This is
-        only returned if `return_im` is True. 
+        only returned if `return_im` is True.
 
     Notes
     -----
@@ -881,6 +1084,11 @@ def imshow(im, color_mapper=None, plot_height=400, plot_width=None,
        if you choose `no_ticks` to be True, no tick or axes labels are
        present, and the pixels are displayed as square.
     """
+    if record_clicks:
+        warnings.warn(
+            '`record_clicks` is deprecated. Use the `bi1x.viz.record_clicks()` function to store clicks. Otherwise use the `display_clicks` kwarg to print the clicks to the right of the displayed image.',
+            DeprecationWarning)
+
     # If a single channel in 3D image, flatten and check shape
     if im.ndim == 3:
         if im.shape[2] == 1:
@@ -897,7 +1105,7 @@ def imshow(im, color_mapper=None, plot_height=400, plot_width=None,
         if color_mapper is None:
             color_mapper = bokeh.models.LinearColorMapper(
                                         bokeh.palettes.viridis(256))
-        elif (type(color_mapper) == str 
+        elif (type(color_mapper) == str
                 and color_mapper.lower() in ['rgb', 'cmy']):
             raise RuntimeError(
                     'Cannot use rgb or cmy colormap for intensity image.')
@@ -912,7 +1120,7 @@ def imshow(im, color_mapper=None, plot_height=400, plot_width=None,
     elif im.ndim == 3:
         if color_mapper is None or color_mapper.lower() == 'cmy':
             im = im_merge(*np.rollaxis(im, 2),
-                          cmy=True, 
+                          cmy=True,
                           im_0_min=min_intensity,
                           im_1_min=min_intensity,
                           im_2_min=min_intensity,
@@ -921,7 +1129,7 @@ def imshow(im, color_mapper=None, plot_height=400, plot_width=None,
                           im_2_max=max_intensity)
         elif color_mapper.lower() == 'rgb':
             im = im_merge(*np.rollaxis(im, 2),
-                          cmy=False, 
+                          cmy=False,
                           im_0_min=min_intensity,
                           im_1_min=min_intensity,
                           im_2_min=min_intensity,
@@ -944,7 +1152,7 @@ def imshow(im, color_mapper=None, plot_height=400, plot_width=None,
         dh = n * interpixel_distance
         x_range = [0, dw]
         y_range = [0, dh]
-    
+
     # Set up figure with appropriate dimensions
     if plot_width is None:
         plot_width = int(m/n * plot_height)
@@ -959,13 +1167,13 @@ def imshow(im, color_mapper=None, plot_height=400, plot_width=None,
                               y_range=y_range,
                               title=title,
                               toolbar_location=toolbar_location,
-                              tools='pan,box_zoom,wheel_zoom,reset')
+                              tools='pan,box_zoom,wheel_zoom,save,reset')
     if no_ticks:
         p.xaxis.major_label_text_font_size = '0pt'
         p.yaxis.major_label_text_font_size = '0pt'
-        p.xaxis.major_tick_line_color = None 
+        p.xaxis.major_tick_line_color = None
         p.xaxis.minor_tick_line_color = None
-        p.yaxis.major_tick_line_color = None 
+        p.yaxis.major_tick_line_color = None
         p.yaxis.minor_tick_line_color = None
     else:
         if x_axis_label is None:
@@ -982,16 +1190,16 @@ def imshow(im, color_mapper=None, plot_height=400, plot_width=None,
         if flip:
             im = im[::-1,:]
         im_bokeh = p.image(image=[im],
-                           x=x_range[0], 
-                           y=y_range[0], 
-                           dw=dw, 
-                           dh=dh, 
+                           x=x_range[0],
+                           y=y_range[0],
+                           dw=dw,
+                           dh=dh,
                            color_mapper=color_mapper)
     else:
-        im_bokeh = p.image_rgba(image=[rgb_to_rgba32(im, flip=flip)], 
+        im_bokeh = p.image_rgba(image=[rgb_to_rgba32(im, flip=flip)],
                                 x=x_range[0],
                                 y=y_range[0],
-                                dw=dw, 
+                                dw=dw,
                                 dh=dh)
 
     # Make a colorbar
@@ -1005,7 +1213,7 @@ def imshow(im, color_mapper=None, plot_height=400, plot_width=None,
                                               location=(0,0))
             p.add_layout(color_bar, 'right')
 
-    if record_clicks:
+    if record_clicks or display_clicks:
         div = bokeh.models.Div(width=200)
         layout = bokeh.layouts.row(p, div)
         p.js_on_event(bokeh.events.Tap,
@@ -1018,6 +1226,292 @@ def imshow(im, color_mapper=None, plot_height=400, plot_width=None,
     if return_im:
         return p, im_bokeh
     return p
+
+
+def record_clicks(im, notebook_url='localhost:8888', point_size=3,
+            table_height=200, crosshair_alpha=0.5,
+            point_color='white', color_mapper=None, plot_height=400,
+            plot_width=None, length_units='pixels', interpixel_distance=1.0,
+            x_range=None, y_range=None, colorbar=False, no_ticks=False,
+            x_axis_label=None, y_axis_label=None, title=None, flip=False,
+            saturate_channels=True, min_intensity=None, max_intensity=None):
+    """Display and record mouse clicks on a Bokeh plot of an image.
+
+    Parameters
+    ----------
+    im : 2D Numpy array
+        Image to display while clicking.
+    notebook_url : str, default 'localhost:8888'
+        URL of notebook for display.
+    point_size : int, default 3
+        Size of points to display when clicking.
+    table_height : int, default 200
+        Height, in pixels, of table displaying mouse click locations.
+    crosshair_alpha : float, default 0.5
+        Opacity value for crosshairs when using the crosshair tool.
+    point_color : str, default 'white'
+        Color of the points displaying clicks.
+    color_mapper : str or bokeh.models.LinearColorMapper, default None
+        If `im` is an intensity image, `color_mapper` is a mapping of
+        intensity to color. If None, default is 256-level Viridis.
+        If `im` is a color image, then `color_mapper` can either be
+        'rgb' or 'cmy' (default), for RGB or CMY merge of channels.
+    plot_height : int
+        Height of the plot in pixels. The width is scaled so that the
+        x and y distance between pixels is the same.
+    plot_width : int or None (default)
+        If None, the width is scaled so that the x and y distance
+        between pixels is approximately the same. Otherwise, the width
+        of the plot in pixels.
+    length_units : str, default 'pixels'
+        The units of length in the image.
+    interpixel_distance : float, default 1.0
+        Interpixel distance in units of `length_units`.
+    x_range : bokeh.models.Range1d instance, default None
+        Range of x-axis. If None, determined automatically.
+    y_range : bokeh.models.Range1d instance, default None
+        Range of y-axis. If None, determined automatically.
+    colorbar : bool, default False
+        If True, include a colorbar.
+    no_ticks : bool, default False
+        If True, no ticks are displayed. See note below.
+    x_axis_label : str, default None
+        Label for the x-axis. If None, labeled with `length_units`.
+    y_axis_label : str, default None
+        Label for the y-axis. If None, labeled with `length_units`.
+    title : str, default None
+        The title of the plot.
+    flip : bool, default False
+        If True, flip image so it displays right-side up. This is
+        necessary because traditionally images have their 0,0 pixel
+        index in the top left corner, and not the bottom left corner.
+        If you are going to use the clicks you record in further image
+        processing applicaitons, you should have `flip` set to False.
+    saturate_channels : bool, default True
+        If True, each of the channels have their displayed pixel values
+        extended to range from 0 to 255 to show the full dynamic range.
+    min_intensity : int or float, default None
+        Minimum possible intensity of a pixel in the image. If None,
+        the image is scaled based on the dynamic range in the image.
+    max_intensity : int or float, default None
+        Maximum possible intensity of a pixel in the image. If None,
+        the image is scaled based on the dynamic range in the image.
+
+    Returns
+    -------
+    output : Bokeh ColumnDataSource
+        A Bokeh ColumnDataSource instance. This can be immediately
+        converted to a Pandas DataFrame using the `to_df()` method. For
+        example, `output.to_df()`.
+    """
+    points_source = bokeh.models.ColumnDataSource({'x': [], 'y': []})
+
+    def modify_doc(doc):
+        p = imshow(im,
+                   color_mapper=color_mapper,
+                   plot_height=plot_height,
+                   plot_width=plot_width,
+                   length_units=length_units,
+                   interpixel_distance=interpixel_distance,
+                   x_range=x_range,
+                   y_range=y_range,
+                   colorbar=colorbar,
+                   no_ticks=no_ticks,
+                   x_axis_label=x_axis_label,
+                   y_axis_label=y_axis_label,
+                   title=title,
+                   flip=flip,
+                   return_im=False,
+                   saturate_channels=saturate_channels,
+                   min_intensity=min_intensity,
+                   max_intensity=max_intensity)
+
+        view = bokeh.models.CDSView(source=points_source)
+
+        renderer = p.scatter(x='x', y='y', source=points_source, view=view,
+                             color=point_color, size=point_size)
+
+        columns = [bokeh.models.TableColumn(field='x', title='x'),
+                   bokeh.models.TableColumn(field='y', title='y')]
+
+        table = bokeh.models.DataTable(source=points_source,
+                                       columns=columns,
+                                       editable=True,
+                                       height=table_height)
+
+        draw_tool = bokeh.models.PointDrawTool(renderers=[renderer])
+        p.add_tools(draw_tool)
+        p.add_tools(bokeh.models.CrosshairTool(line_alpha=crosshair_alpha))
+        p.toolbar.active_tap = draw_tool
+
+        doc.add_root(bokeh.layouts.column(p, table))
+
+    bokeh.io.show(modify_doc, notebook_url=notebook_url)
+
+    return points_source
+
+
+def draw_rois(im, notebook_url='localhost:8888', table_height=100,
+            crosshair_tool_alpha=0.5,
+            color='white', fill_alpha=0.1, vertex_color='red',
+            vertex_size=10, color_mapper=None, plot_height=400,
+            plot_width=None, length_units='pixels', interpixel_distance=1.0,
+            x_range=None, y_range=None, colorbar=False, no_ticks=False,
+            x_axis_label=None, y_axis_label=None, title=None, flip=False,
+            saturate_channels=True, min_intensity=None, max_intensity=None):
+    """Draw and record polygonal regions of interest on a plot of a
+    Bokeh image.
+
+    Parameters
+    ----------
+    im : 2D Numpy array
+        Image to display while clicking.
+    notebook_url : str, default 'localhost:8888'
+        URL of notebook for display.
+    table_height : int, default 200
+        Height, in pixels, of table displaying polygon vertex locations.
+    crosshair_alpha : float, default 0.5
+        Opacity value for crosshairs when using the crosshair tool.
+    color : str, default 'white'
+        Color of the ROI polygons (lines and fill).
+    fill_alpha : float, default 0.1
+        Opacity of drawn ROI polygons.
+    vertex_color : str, default 'red'
+        Color of vertices of the ROI polygons while using the polygon
+        edit tool.
+    vertex_size: int, default 10
+        Size, in pixels, of vertices of the ROI polygons while using the
+        polygon edit tool.
+    color_mapper : str or bokeh.models.LinearColorMapper, default None
+        If `im` is an intensity image, `color_mapper` is a mapping of
+        intensity to color. If None, default is 256-level Viridis.
+        If `im` is a color image, then `color_mapper` can either be
+        'rgb' or 'cmy' (default), for RGB or CMY merge of channels.
+    plot_height : int
+        Height of the plot in pixels. The width is scaled so that the
+        x and y distance between pixels is the same.
+    plot_width : int or None (default)
+        If None, the width is scaled so that the x and y distance
+        between pixels is approximately the same. Otherwise, the width
+        of the plot in pixels.
+    length_units : str, default 'pixels'
+        The units of length in the image.
+    interpixel_distance : float, default 1.0
+        Interpixel distance in units of `length_units`.
+    x_range : bokeh.models.Range1d instance, default None
+        Range of x-axis. If None, determined automatically.
+    y_range : bokeh.models.Range1d instance, default None
+        Range of y-axis. If None, determined automatically.
+    colorbar : bool, default False
+        If True, include a colorbar.
+    no_ticks : bool, default False
+        If True, no ticks are displayed. See note below.
+    x_axis_label : str, default None
+        Label for the x-axis. If None, labeled with `length_units`.
+    y_axis_label : str, default None
+        Label for the y-axis. If None, labeled with `length_units`.
+    title : str, default None
+        The title of the plot.
+    flip : bool, default False
+        If True, flip image so it displays right-side up. This is
+        necessary because traditionally images have their 0,0 pixel
+        index in the top left corner, and not the bottom left corner.
+        If you are going to use the clicks you record in further image
+        processing applicaitons, you should have `flip` set to False.
+    saturate_channels : bool, default True
+        If True, each of the channels have their displayed pixel values
+        extended to range from 0 to 255 to show the full dynamic range.
+    min_intensity : int or float, default None
+        Minimum possible intensity of a pixel in the image. If None,
+        the image is scaled based on the dynamic range in the image.
+    max_intensity : int or float, default None
+        Maximum possible intensity of a pixel in the image. If None,
+        the image is scaled based on the dynamic range in the image.
+
+    Returns
+    -------
+    output : Bokeh ColumnDataSource
+        A Bokeh ColumnDataSource instance. This can be immediately
+        converted to a Pandas DataFrame `roicds_to_df()` function. For
+        example, `bi1x.viz.roicds_to_df(output)`.
+
+    Notes
+    -----
+    .. The displayed table is not particularly useful because it
+       displays a list of points. It helps to make sure your clicks are
+       getting registered and to select which ROI number is which
+       polygon.
+    """
+
+    poly_source = bokeh.models.ColumnDataSource({'xs': [], 'ys': []})
+
+    def modify_doc(doc):
+        p = imshow(im,
+                   color_mapper=color_mapper,
+                   plot_height=plot_height,
+                   plot_width=plot_width,
+                   length_units=length_units,
+                   interpixel_distance=interpixel_distance,
+                   x_range=x_range,
+                   y_range=y_range,
+                   colorbar=colorbar,
+                   no_ticks=no_ticks,
+                   x_axis_label=x_axis_label,
+                   y_axis_label=y_axis_label,
+                   title=title,
+                   flip=flip,
+                   return_im=False,
+                   saturate_channels=saturate_channels,
+                   min_intensity=min_intensity,
+                   max_intensity=max_intensity)
+
+        view = bokeh.models.CDSView(source=poly_source)
+        renderer = p.patches(xs='xs', ys='ys', source=poly_source, view=view,
+                             fill_alpha=fill_alpha, color=color)
+        vertex_renderer = p.circle([], [], size=vertex_size, color='red')
+
+        columns = [bokeh.models.TableColumn(field='xs', title='xs'),
+                   bokeh.models.TableColumn(field='ys', title='ys')]
+
+        table = bokeh.models.DataTable(source=poly_source,
+                                       index_header='roi',
+                                       columns=columns,
+                                       height=table_height)
+        draw_tool = bokeh.models.PolyDrawTool(renderers=[renderer])
+        edit_tool = bokeh.models.PolyEditTool(renderers=[renderer],
+                                              vertex_renderer=vertex_renderer)
+        p.add_tools(draw_tool)
+        p.add_tools(edit_tool)
+        p.add_tools(bokeh.models.CrosshairTool(line_alpha=crosshair_tool_alpha))
+        p.toolbar.active_tap = draw_tool
+
+        doc.add_root(bokeh.layouts.column(p, table))
+
+    bokeh.io.show(modify_doc, notebook_url=notebook_url)
+
+    return poly_source
+
+
+def roicds_to_df(cds):
+    """Convert a ColumnDataSource outputted by `draw_rois()` to a Pandas
+    DataFrame.
+
+    Parameter
+    ---------
+    cds : Bokeh ColumnDataSource
+        ColumnDataSource outputted by `draw_rois()`
+
+    Returns
+    -------
+    output : Pandas DataFrame
+        DataFrame with columns ['roi', 'x', 'y'] containing the
+        positions of the vertices of the respective polygonal ROIs.
+    """
+    roi = np.concatenate([[i]*len(x_data) for i, x_data in enumerate(cds.data['xs'])])
+    x = np.concatenate(cds.data['xs'])
+    y = np.concatenate(cds.data['ys'])
+
+    return pd.DataFrame(data=dict(roi=roi, x=x, y=y))
 
 
 def im_merge(im_0, im_1, im_2=None, im_0_max=None,
@@ -1052,7 +1546,7 @@ def im_merge(im_0, im_1, im_2=None, im_0_max=None,
         Minimum value to use when scaling the third channel
     cmy : bool, default True
         If True, first channel is cyan, second is magenta, and third is
-        yellow. Otherwise, first channel is red, second is green, and 
+        yellow. Otherwise, first channel is red, second is green, and
         third is blue.
 
     Returns
@@ -1203,143 +1697,487 @@ def rgb_frac_to_hex(rgb_frac):
                                            int(rgb_frac[2] * 255))
 
 
-def contour(X, Y, Z, levels=None, p=None, overlaid=False, plot_width=350, 
-            plot_height=300, x_axis_label='x', y_axis_label='y', title=None, 
-            line_color=None, line_width=2, color_mapper=None,
-            overlay_grid=False, fill=False, fill_palette=None,
-            fill_alpha=0.75, **kwargs):
+def boxwhisker(data, cats, val, p=None, horizontal=False, x_axis_label=None,
+        y_axis_label=None, title=None, plot_height=300, plot_width=400,
+        palette=['#4e79a7', '#f28e2b', '#e15759', '#76b7b2', '#59a14f',
+                 '#edc948', '#b07aa1', '#ff9da7', '#9c755f', '#bab0ac'],
+        width=0.4, order=None, val_axis_type='linear', display_outliers=True,
+        box_kwargs=None, whisker_kwargs=None, outlier_kwargs=None):
+    """Deprecated, see `box`."""
+    warnings.warn('`boxwhisker` is deprecated and will be removed in future versions. Use `box`.', DeprecationWarning)
+
+    return box(data, cats, val, p, horizontal, x_axis_label, y_axis_label,
+               title, plot_height, plot_width, palette, width, order,
+               val_axis_type, display_outliers, box_kwargs, whisker_kwargs,
+               outlier_kwargs)
+
+
+def mpl_cmap_to_color_mapper(cmap):
     """
-    Make a contour plot, possibly overlaid on an image.
+    Convert a Matplotlib colormap to a bokeh.models.LinearColorMapper
+    instance.
 
     Parameters
     ----------
-    X : 2D Numpy array
-        Array of x-values, as would be produced using np.meshgrid()
-    Y : 2D Numpy array
-        Array of y-values, as would be produced using np.meshgrid()
-    Z : 2D Numpy array
-        Array of z-values.
-    levels : array_like
-        Levels to plot, ranging from 0 to 1. The contour around a given
-        level contains that fraction of the total probability if the
-        contour plot is for a 2D probability density function. By 
-        default, the levels are given by the one, two, three, and four
-        sigma levels corresponding to a marginalized distribution from
-        a 2D Gaussian distribution.
-    p : bokeh plotting object, default None
-        If not None, the contour are added to `p`. This option is not
-        allowed if `overlaid` is True.
-    overlaid : bool, default False
-        If True, `Z` is displayed as an image and the contours are
-        overlaid.
-    plot_width : int, default 350
-        Width of the plot in pixels. Ignored if `p` is not None.
-    plot_height : int, default 300
-        Height of the plot in pixels. Ignored if `p` is not None.
-    x_axis_label : str, default 'x'
-        Label for the x-axis. Ignored if `p` is not None.
-    y_axis_label : str, default 'y'
-        Label for the y-axis. Ignored if `p` is not None.
-    title : str, default None
-        Title of the plot. Ignored if `p` is not None.
-    line_color : str, defaults to Bokeh default
-        Color, either named CSS color or hex, of contour lines.
-    line_width : int, default 2
-        Width of contour lines.
-    color_mapper : bokeh.models.LinearColorMapper, default Viridis
-        Mapping of `Z` level to color. Ignored if `overlaid` is False.
-    overlay_grid : bool, default False
-        If True, faintly overlay the grid on top of image. Ignored if
-        overlaid is False.
+    cmap : str
+        A string giving the name of the color map.
 
     Returns
     -------
-    output : Bokeh plotting object
-        Plot populated with contours, possible with an image.
+    output : bokeh.models.LinearColorMapper instance
+        A linear color_mapper with 25 gradations.
+
+    Notes
+    -----
+    .. See https://matplotlib.org/examples/color/colormaps_reference.html
+       for available Matplotlib colormaps.
     """
-    if len(X.shape) != 2 or Y.shape != X.shape or Z.shape != X.shape:
-        raise RuntimeError('All arrays must be 2D and of same shape.')
+    cm = mpl_get_cmap(cmap)
+    palette = [rgb_frac_to_hex(cm(i)[:3]) for i in range(256)]
+    return bokeh.models.LinearColorMapper(palette=palette)
 
-    if overlaid and p is not None:
-        raise RuntimeError('Cannot specify `p` if showing image.')
 
-    if line_color is None:
-        if overlaid:
-            line_color = 'white'
+def _ecdf_vals(data, formal=False, complementary=False):
+    """Get x, y, values of an ECDF for plotting.
+    Parameters
+    ----------
+    data : ndarray
+        One dimensional Numpy array with data.
+    formal : bool, default False
+        If True, generate x and y values for formal ECDF (staircase). If
+        False, generate x and y values for ECDF as dots.
+    complementary : bool
+        If True, return values for ECCDF.
+
+    Returns
+    -------
+    x : ndarray
+        x-values for plot
+    y : ndarray
+        y-values for plot
+    """
+    x = np.sort(data)
+    y = np.arange(1, len(data)+1) / len(data)
+
+    if formal:
+        x, y = _to_formal(x, y)
+        if complementary:
+            y = 1 - y
+    elif complementary:
+        y = 1 - y + 1/len(y)
+
+    return x, y
+
+
+@numba.jit(nopython=True)
+def _ecdf_arbitrary_points(data, x):
+    """Give the value of an ECDF at arbitrary points x."""
+    y = np.arange(len(data) + 1) / len(data)
+    return y[np.searchsorted(np.sort(data), x, side='right')]
+
+
+def _ecdf_from_samples(df, name, ptiles, x):
+    """Compute ECDFs and percentiles from samples."""
+    df_ecdf = pd.DataFrame()
+    df_ecdf_vals = pd.DataFrame()
+    grouped = df.groupby(['chain', 'chain_idx'])
+    for i, g in grouped:
+        df_ecdf_vals[i] = _ecdf_arbitrary_points(g[name].values, x)
+
+    for ptile in ptiles:
+        df_ecdf[str(ptile)] = df_ecdf_vals.quantile(
+                            ptile/100, axis=1, interpolation='higher')
+    df_ecdf['x'] = x
+
+    return df_ecdf
+
+
+def _to_formal(x, y):
+    """Convert to formal ECDF."""
+    # Set up output arrays
+    x_formal = np.empty(2*len(x))
+    y_formal = np.empty(2*len(x))
+
+    # y-values for steps
+    y_formal[0] = 0
+    y_formal[1::2] = y
+    y_formal[2::2] = y[:-1]
+
+    # x- values for steps
+    x_formal[::2] = x
+    x_formal[1::2] = x
+
+    return x_formal, y_formal
+
+
+@numba.jit(nopython=True)
+def _y_ecdf(data, x):
+    y = np.arange(len(data) + 1) / len(data)
+    return y[np.searchsorted(np.sort(data), x, side='right')]
+
+
+@numba.jit(nopython=True)
+def _draw_ecdf_bootstrap(L, n, n_bs_reps=100000):
+    x = np.arange(L+1)
+    ys = np.empty((n_bs_reps, len(x)))
+    for i in range(n_bs_reps):
+        draws = np.random.randint(0, L+1, size=n)
+        ys[i, :] = _y_ecdf(draws, x)
+    return ys
+
+
+def _ecdf_diff(data, L, formal=False):
+    x, y = _ecdf_vals(data)
+    y_uniform = (x + 1)/L
+    if formal:
+        x, y = _to_formal(x, y)
+        _, y_uniform = _to_formal(np.arange(len(data)), y_uniform)
+    y -= y_uniform
+
+    return x, y
+
+
+def _get_cat_range(df, grouped, order, color_column, horizontal):
+    if order is None:
+        if isinstance(list(grouped.groups.keys())[0], tuple):
+            factors = tuple([tuple([str(k) for k in key])
+                                for key in grouped.groups.keys()])
         else:
-            line_color = 'black'
-
-    if p is None:
-        if overlaid:
-            p = imshow(Z,
-                       color_mapper=color_mapper,
-                       plot_height=plot_height,
-                       plot_width=plot_width,
-                       x_axis_label=x_axis_label,
-                       y_axis_label=y_axis_label,
-                       title=title,
-                       x_range = [X.min(), X.max()],
-                       y_range = [Y.min(), Y.max()],
-                       no_ticks=False, 
-                       flip=False, 
-                       return_im=False)
+            factors = tuple([str(key) for key in grouped.groups.keys()])
+    else:
+        if type(order[0]) in [list, tuple]:
+            factors = tuple([tuple([str(k) for k in key]) for key in order])
         else:
-            p = bokeh.plotting.figure(plot_width=plot_width,
-                                      plot_height=plot_height,
-                                      x_axis_label=x_axis_label,
-                                      y_axis_label=y_axis_label,
-                                      title=title)
+            factors = tuple([str(entry) for entry in order])
 
-    # Set default levels
-    if levels is None:
-        levels = 1.0 - np.exp(-np.arange(0.5, 2.1, 0.5)**2 / 2)
+    if horizontal:
+        cat_range = bokeh.models.FactorRange(*(factors[::-1]))
+    else:
+        cat_range = bokeh.models.FactorRange(*factors)
 
-    # Compute contour lines
-    if fill or line_width:
-        xs, ys = _contour_lines(X, Y, Z, levels)
+    if color_column is None:
+        color_factors = factors
+    else:
+        color_factors = tuple(sorted(list(
+                                df[color_column].unique().astype(str))))
 
-    # Make fills. This is currently not supported
-    if fill:
-        raise NotImplementedError('Filled contours are not yet implemented.')
-        if fill_palette is None:
-            if len(levels) <= 6:
-                fill_palette = bokeh.palettes.Greys[len(levels)+3][1:-1]
-            elif len(levels) <= 10:
-                fill_palette = bokeh.palettes.Viridis[len(levels)+1]
+    return cat_range, factors, color_factors
+
+
+def _cat_figure(df, grouped, plot_height, plot_width, x_axis_label,
+                y_axis_label, title, order, color_column, tooltips,
+                horizontal, val_axis_type):
+    fig_kwargs = dict(plot_height=plot_height,
+                      plot_width=plot_width,
+                      x_axis_label=x_axis_label,
+                      y_axis_label=y_axis_label,
+                      title=title,
+                      tooltips=tooltips)
+
+    cat_range, factors, color_factors = _get_cat_range(df,
+                                                       grouped,
+                                                       order,
+                                                       color_column,
+                                                       horizontal)
+
+    if horizontal:
+        fig_kwargs['y_range'] = cat_range
+        fig_kwargs['x_axis_type'] = val_axis_type
+    else:
+        fig_kwargs['x_range'] = cat_range
+        fig_kwargs['y_axis_type'] = val_axis_type
+
+    return bokeh.plotting.figure(**fig_kwargs), factors, color_factors
+
+
+def _cat_source(df, cats, cols, color_column):
+    if type(cats) in [list, tuple]:
+        cat_source = list(zip(*tuple([df[cat].astype(str) for cat in cats])))
+        labels = [', '.join(cat) for cat in cat_source]
+    else:
+        cat_source = list(df[cats].astype(str).values)
+        labels = cat_source
+
+    if type(cols) in [list, tuple, pd.core.indexes.base.Index]:
+        source_dict = {col: list(df[col].values) for col in cols}
+    else:
+        source_dict = {cols: list(df[cols].values)}
+
+    source_dict['cat'] = cat_source
+    if color_column in [None, 'cat']:
+        source_dict['__label'] = labels
+    else:
+        source_dict['__label'] = list(df[color_column].astype(str).values)
+        source_dict[color_column] = list(df[color_column].astype(str).values)
+
+    return bokeh.models.ColumnDataSource(source_dict)
+
+
+def _tooltip_cols(tooltips):
+    if tooltips is None:
+        return []
+    if type(tooltips) not in [list, tuple]:
+        raise RuntimeError(
+                '`tooltips` must be a list or tuple of two-tuples.')
+
+    cols = []
+    for tip in tooltips:
+        if type(tip) not in [list, tuple] or len(tip) != 2:
+            raise RuntimeError('Invalid tooltip.')
+        if tip[1][0] == '@':
+            if tip[1][1] == '{':
+                cols.append(tip[1][2:tip[1].find('}')])
+            elif '{' in tip[1]:
+                cols.append(tip[1][1:tip[1].find('{')])
             else:
+                cols.append(tip[1][1:])
+
+    return cols
+
+
+def _cols_to_keep(cats, val, color_column, tooltips):
+    cols = _tooltip_cols(tooltips)
+    cols += [val]
+
+    if type(cats) in [list, tuple]:
+        cols += list(cats)
+    else:
+        cols += [cats]
+
+    if color_column is not None:
+        cols += [color_column]
+
+    return list(set(cols))
+
+
+def _check_cat_input(df, cats, val, color_column, tooltips, palette, kwargs):
+    if df is None:
+        raise RuntimeError('`df` argument must be provided.')
+    if cats is None:
+        raise RuntimeError('`cats` argument must be provided.')
+    if val is None:
+        raise RuntimeError('`val` argument must be provided.')
+
+    if type(palette) not in [list, tuple]:
+        raise RuntimeError('`palette` must be a list or tuple.')
+
+    if val not in df.columns:
+        raise RuntimeError(
+            f'{val} is not a column in the inputted data frame')
+
+    cats_array = type(cats) in [list, tuple]
+
+    if cats_array:
+        for cat in cats:
+            if cat not in df.columns:
                 raise RuntimeError(
-                    'Can only have maximally 10 levels with filled contours' +
-                    ' unless user specifies `fill_palette`.')
-        elif len(fill_palette) != len(levels) + 1:
-            raise RuntimeError('`fill_palette` must have 1 more entry' +
-                               ' than `levels`')
+                        f'{cat} is not a column in the inputted data frame')
+    else:
+        if cats not in df.columns:
+            raise RuntimeError(
+                        f'{cats} is not a column in the inputted data frame')
 
-        p.patch(xs[-1], ys[-1],
-                color=fill_palette[0],
-                alpha=fill_alpha,
-                line_color=None)
-        for i in range(1, len(levels)):
-            x_p = np.concatenate((xs[-1-i], xs[-i][::-1]))
-            y_p = np.concatenate((ys[-1-i], ys[-i][::-1]))
-            print(len(x_p), len(y_p))
-            p.patch(x_p, 
-                    y_p, 
-                    color=fill_palette[i],
-                    alpha=fill_alpha,
-                    line_color=None)
+    if color_column is not None and color_column not in df.columns:
+        raise RuntimeError(
+                f'{color_column} is not a column in the inputted data frame')
 
-        p.background_fill_color=fill_palette[-1]
+    cols = _cols_to_keep(cats, val, color_column, tooltips)
 
-    # Populate the plot with contour lines
-    if line_width:
-        p.multi_line(xs, ys, line_color=line_color, line_width=line_width,
-                     **kwargs)
+    for col in cols:
+        if col not in df.columns:
+            raise RuntimeError(
+                    f'{col} is not a column in the inputted data frame')
 
-    if overlay_grid and overlaid:
-        p.grid.level = 'overlay'
-        p.grid.grid_line_alpha = 0.2
+    bad_kwargs = ['x', 'y', 'source', 'cat', 'legend']
+    if (kwargs is not None
+            and any([key in kwargs for key in bad_kwargs])):
+        raise RuntimeError(', '.join(bad_kwargs) + ' are not allowed kwargs.')
+
+    if val == 'cat':
+        raise RuntimeError("`'cat'` cannot be used as `val`.")
+
+    if (    val == '__label'
+         or (cats == '__label' or (cats_array and '__label' in cats))):
+        raise RuntimeError("'__label' cannot be used for `val` or `cats`.")
+
+    return cols
+
+
+def _outliers(data):
+    bottom, middle, top = np.percentile(data, [25, 50, 75])
+    iqr = top - bottom
+    top_whisker = min(top + 1.5*iqr, data.max())
+    bottom_whisker = max(bottom - 1.5*iqr, data.min())
+    outliers = data[(data > top_whisker) | (data < bottom_whisker)]
+    return outliers
+
+
+def _box_and_whisker(data):
+    middle = data.median()
+    bottom = data.quantile(0.25)
+    top = data.quantile(0.75)
+    iqr = top - bottom
+    top_whisker = min(top + 1.5*iqr, data.max())
+    bottom_whisker = max(bottom - 1.5*iqr, data.min())
+    return pd.Series({'middle': middle,
+                      'bottom': bottom,
+                      'top': top,
+                      'top_whisker': top_whisker,
+                      'bottom_whisker': bottom_whisker})
+
+
+def _box_source(df, cats, val, cols):
+    """Construct a data frame for making box plot."""
+
+    # Need to reset index for use in slicing outliers
+    df_source = df.reset_index(drop=True)
+
+    if type(cats) in [list, tuple]:
+        level = list(range(len(cats)))
+    else:
+        level = 0
+
+    if cats is None:
+        grouped = df_source
+    else:
+        grouped = df_source.groupby(cats)
+
+    # Data frame for boxes and whiskers
+    df_box = grouped[val].apply(_box_and_whisker).unstack().reset_index()
+    source_box = _cat_source(df_box,
+                             cats,
+                             ['middle', 'bottom', 'top',
+                              'top_whisker', 'bottom_whisker'],
+                             None)
+
+    # Data frame for outliers
+    df_outliers = grouped[val].apply(_outliers).reset_index(level=level)
+    df_outliers[cols] = df_source.loc[df_outliers.index, cols]
+    source_outliers = _cat_source(df_outliers, cats, cols, None)
+
+    return source_box, source_outliers
+
+
+def _ecdf_y(data, complementary=False):
+    """Give y-values of an ECDF for an unsorted column in a data frame.
+
+    Parameters
+    ----------
+    data : Pandas Series
+        Series (or column of a DataFrame) from which to generate ECDF
+        values
+    complementary : bool, default False
+        If True, give the ECCDF values.
+
+    Returns
+    -------
+    output : Pandas Series
+        Corresponding y-values for an ECDF when plotted with dots.
+
+    Notes
+    -----
+    .. This only works for plotting an ECDF with points, not for formal
+       ECDFs
+    """
+    if complementary:
+        return 1 - data.rank(method='first') / len(data) + 1 / len(data)
+    else:
+        return data.rank(method='first') / len(data)
+
+
+def _point_ecdf_source(data, val, cats, cols, complementary, colored):
+    """DataFrame for making point-wise ECDF."""
+    df = data.copy()
+
+    if complementary:
+        col = '__ECCDF'
+    else:
+        col = '__ECDF'
+
+    if cats is None or colored:
+        df[col] = _ecdf_y(df[val], complementary)
+    else:
+        df[col] = df.groupby(cats)[val].transform(_ecdf_y, complementary)
+
+    cols += [col]
+
+    return _cat_source(df, cats, cols, None)
+
+
+def _ecdf_collection_dots(df, val, cats, cols, complementary, order, palette,
+                          show_legend, y, p, **kwargs):
+    _, _, color_factors = _get_cat_range(df,
+                                         df.groupby(cats),
+                                         order,
+                                         None,
+                                         False)
+
+    source = _point_ecdf_source(df, val, cats, cols, complementary, False)
+
+    if 'color' not in kwargs:
+        kwargs['color'] = bokeh.transform.factor_cmap('cat',
+                                                    palette=palette,
+                                                    factors=color_factors)
+
+    if show_legend:
+        kwargs['legend'] = '__label'
+
+    p.circle(source=source,
+             x=val,
+             y=y,
+             **kwargs)
 
     return p
+
+
+def _ecdf_collection_formal(df, val, cats, complementary, order, palette,
+                            show_legend, p, **kwargs):
+    grouped = df.groupby(cats)
+
+    color_not_in_kwargs = 'color' not in kwargs
+
+    if order is None:
+        order = list(grouped.groups.keys())
+    grouped_iterator = [(order_val, grouped.get_group(order_val))
+                        for order_val in order]
+
+    for i, g in enumerate(grouped_iterator):
+        if show_legend:
+            if type(g[0]) == tuple:
+                legend = ', '.join([str(c) for c in g[0]])
+            else:
+                legend = str(g[0])
+        else:
+            legend = None
+
+        if color_not_in_kwargs:
+            kwargs['color'] = palette[i % len(palette)]
+
+        ecdf(g[1][val],
+             formal=True,
+             p=p,
+             legend=legend,
+             complementary=complementary,
+             **kwargs)
+
+    return p
+
+
+def _display_clicks(div, attributes=[],
+                    style='float:left;clear:left;font_size=0.5pt'):
+    """Build a suitable CustomJS to display the current event
+    in the div model."""
+    return bokeh.models.CustomJS(args=dict(div=div), code="""
+        var attrs = %s; var args = [];
+        for (var i=0; i<attrs.length; i++ ) {
+            args.push(Number(cb_obj[attrs[i]]).toFixed(4));
+        }
+        var line = "<span style=%r>[" + args.join(", ") + "], </span>\\n";
+        var text = div.text.concat(line);
+        var lines = text.split("\\n")
+        if ( lines.length > 35 ) { lines.shift(); }
+        div.text = lines.join("\\n");
+    """ % (attributes, style))
 
 
 def _data_range(df, x, y, margin=0.02):
@@ -1349,125 +2187,16 @@ def _data_range(df, x, y, margin=0.02):
             [df[y].min() - y_range*margin, df[y].max() + y_range*margin])
 
 
-def _create_points_image(x_range, y_range, w, h, df, x, y, cmap):
-    cvs = ds.Canvas(x_range=x_range, y_range=y_range, plot_height=int(h), 
-                    plot_width=int(w))
-    agg = cvs.points(df, x, y, agg=ds.reductions.count())
-    return ds.transfer_functions.dynspread(ds.transfer_functions.shade(
-                                        agg, cmap=cmap, how='linear'))
-
-
-def _create_line_image(x_range, y_range, w, h, df, x, y, cmap=None):
-    cvs = ds.Canvas(x_range=x_range, y_range=y_range, plot_height=int(h), 
-                    plot_width=int(w))
-    agg = cvs.line(df, x, y)
-    return ds.transfer_functions.dynspread(ds.transfer_functions.shade(
-                                               agg, cmap=cmap))
-
-
-def _contour_lines(X, Y, Z, levels):
-    """
-    Generate lines for contour plot.
-    """
-    # Compute the density levels.
-    Zflat = Z.flatten()
-    inds = np.argsort(Zflat)[::-1]
-    Zflat = Zflat[inds]
-    sm = np.cumsum(Zflat)
-    sm /= sm[-1]
-    V = np.empty(len(levels))
-    for i, v0 in enumerate(levels):
-        try:
-            V[i] = Zflat[sm <= v0][-1]
-        except:
-            V[i] = Zflat[0]
-    V.sort()
-    m = np.diff(V) == 0
-    
-    while np.any(m):
-        V[np.where(m)[0][0]] *= 1.0 - 1e-4
-        m = np.diff(V) == 0
-    V.sort()
-
-    # Make contours
-    c = matplotlib._contour.QuadContourGenerator(X, Y, Z, None, True, 0)
-    xs = []
-    ys = []
-    for level in V:
-        paths = c.create_contour(level)
-        for line in paths:
-            xs.append(line[:,0])
-            ys.append(line[:,1])
-            
-    return xs, ys
-
-
-def _get_contour_lines_from_samples(x, y, smooth=1, levels=None, bins=50, 
-                                    weights=None, extend_domain=False):
-    """
-    Get lines for contour overlay.
-
-    Based on code from emcee by Dan Forman-Mackey.
-    """
-    data_range = [[x.min(), x.max()], [y.min(), y.max()]]
-
-    # Choose the default "sigma" contour levels.
-    if levels is None:
-        levels = 1.0 - np.exp(-0.5 * np.arange(0.5, 2.1, 0.5) ** 2)
-
-    # We'll make the 2D histogram to directly estimate the density.
-    try:
-        H, X, Y = np.histogram2d(x.flatten(), y.flatten(), bins=bins,
-                                 range=list(map(np.sort, data_range)),
-                                 weights=weights)
-    except ValueError:
-        raise ValueError("It looks like at least one of your sample columns "
-                         "have no dynamic data_range. You could try using the "
-                         "'data_range' argument.")
-
-    if smooth is not None:
-        H = scipy.ndimage.gaussian_filter(H, smooth)
-
-    # Compute the bin centers.
-    X1, Y1 = 0.5 * (X[1:] + X[:-1]), 0.5 * (Y[1:] + Y[:-1])
-
-    # Extend the array for the sake of the contours at the plot edges.
-    if extend_domain:
-        H2 = H.min() + np.zeros((H.shape[0] + 4, H.shape[1] + 4))
-        H2[2:-2, 2:-2] = H
-        H2[2:-2, 1] = H[:, 0]
-        H2[2:-2, -2] = H[:, -1]
-        H2[1, 2:-2] = H[0]
-        H2[-2, 2:-2] = H[-1]
-        H2[1, 1] = H[0, 0]
-        H2[1, -2] = H[0, -1]
-        H2[-2, 1] = H[-1, 0]
-        H2[-2, -2] = H[-1, -1]
-        X2 = np.concatenate([
-            X1[0] + np.array([-2, -1]) * np.diff(X1[:2]),
-            X1,
-            X1[-1] + np.array([1, 2]) * np.diff(X1[-2:]),
-        ])
-        Y2 = np.concatenate([
-            Y1[0] + np.array([-2, -1]) * np.diff(Y1[:2]),
-            Y1,
-            Y1[-1] + np.array([1, 2]) * np.diff(Y1[-2:]),
-        ])
-        X2, Y2 = np.meshgrid(X2, Y2)
-    else:
-        X2, Y2 = np.meshgrid(X1, Y1)
-        H2 = H
-
-    return _contour_lines(X2, Y2, H2.transpose(), levels)
-
-
 def im_click(im, color_mapper=None, plot_height=400, plot_width=None,
              length_units='pixels', interpixel_distance=1.0,
              x_range=None, y_range=None,
-             no_ticks=False, x_axis_label=None, y_axis_label=None, 
+             no_ticks=False, x_axis_label=None, y_axis_label=None,
              title=None, flip=True):
     """
     """
+
+    warnings.warn('`im_click` is deprecated. Use `imshow` instead.',
+                  DeprecationWarning)
 
     def display_event(div, attributes=[],
                       style='float:left;clear:left;font_size=0.5pt'):
@@ -1487,16 +2216,16 @@ def im_click(im, color_mapper=None, plot_height=400, plot_width=None,
 
     p = imshow(im,
                color_mapper=color_mapper,
-               plot_height=plot_height, 
+               plot_height=plot_height,
                plot_width=plot_width,
-               length_units=length_units, 
+               length_units=length_units,
                interpixel_distance=interpixel_distance,
-               x_range=x_range, 
+               x_range=x_range,
                y_range=y_range,
-               no_ticks=no_ticks, 
-               x_axis_label=x_axis_label, 
-               y_axis_label=y_axis_label, 
-               title=title, 
+               no_ticks=no_ticks,
+               x_axis_label=x_axis_label,
+               y_axis_label=y_axis_label,
+               title=title,
                flip=flip)
 
     div = bokeh.models.Div(width=200)
@@ -1505,29 +2234,3 @@ def im_click(im, color_mapper=None, plot_height=400, plot_width=None,
     p.js_on_event(bokeh.events.Tap, display_event(div, attributes=['x', 'y']))
 
     return layout
-
-
-def mpl_cmap_to_color_mapper(cmap):
-    """
-    Convert a Matplotlib colormap to a bokeh.models.LinearColorMapper
-    instance.
-
-    Parameters
-    ----------
-    cmap : str
-        A string giving the name of the color map.
-
-    Returns
-    -------
-    output : bokeh.models.LinearColorMapper instance
-        A linear color_mapper with 256 gradations.
-
-    Notes
-    -----
-    .. See https://matplotlib.org/examples/color/colormaps_reference.html
-       for available Matplotlib colormaps.
-    """
-    cm = mpl_get_cmap(cmap)
-    palette = [rgb_frac_to_hex(cm(i)[:3]) for i in range(256)]
-    return bokeh.models.LinearColorMapper(palette=palette)
-
