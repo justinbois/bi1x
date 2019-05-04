@@ -7,6 +7,7 @@ import numba
 import scipy.ndimage
 import skimage
 import skimage.exposure
+import skimage.transform
 
 from matplotlib.pyplot import get_cmap as mpl_get_cmap
 
@@ -1266,6 +1267,107 @@ def imshow(im, color_mapper=None, plot_height=400, plot_width=None,
     if return_im:
         return p, im_bokeh
     return p
+
+
+def imstackshow(im_stack, time_points=None, 
+                color_mapper=None, downscale=1, 
+                plot_height=400):
+    """
+    Build display of image stack.
+    
+    Parameters
+    ----------
+    im_stack : list of tuple of 2d Numpy arrays
+        List of images
+    time_points : ndarray, default None
+        Time points where concentrations were sampled. If None, indices
+        of images are used.
+    color_mapper : str or bokeh.models.LinearColorMapper, default None
+        If `im` is an intensity image, `color_mapper` is a mapping of
+        intensity to color. If None, default is 256-level Viridis.
+        If `im` is a color image, then `color_mapper` can either be
+        'rgb' or 'cmy' (default), for RGB or CMY merge of channels.
+    downscale : int, default 1
+        Factor by which to downscale image for viewing. You will 
+        experience performance issues if the images are to large. As
+        a rough estimate, your image size should be no larger than about
+        400x400 pixels.
+    plot_height : int, default 400
+        Height of plot, in pixels.
+        
+    Notes
+    -----
+    .. To display in a notebook hosted, e.g., at `localhost:8888`, do
+       `bokeh.io.show(display_notebook(time_points, im_stack),
+                      notebook_url='localhost:8888')`
+    """
+    # Time points
+    if time_points is None:
+        time_points = np.arange(len(im_stack))
+        step = 1
+        title = 'image index'
+    else:
+        step = 1 / len(time_points) * (time_points[1] - time_points[0])
+        title = 'time'
+    
+    if downscale > 1:
+        im_stack = [skimage.transform.downscale_local_mean(im, (downscale, downscale)) 
+                        for im in im_stack]
+
+    # Make sure number of time points matches dimensions
+    if len(im_stack) != len(time_points):
+        raise RuntimeError('Number of time points must equal im_stack.shape[0].')
+
+    # Determine maximal and minimal intensity
+    im_stack_max = 0
+    im_stack_min = np.inf
+    for im in im_stack:
+        if im.max() > im_stack_max:
+            im_stack_max = im.max()
+        if im.min() < im_stack_min:
+            im_stack_min = im.min()
+    
+    # Colormapper
+    if color_mapper is None:
+        color_mapper = bokeh.models.LinearColorMapper(
+                    bokeh.palettes.viridis(256), 
+                    low=im_stack_min, high=im_stack_max)
+
+    # Get shape of domain
+    n, m = im_stack[0].shape
+    
+    # Set up figure with appropriate dimensions
+    plot_width = int(m/n * plot_height)
+
+    def _plot_app(doc):
+        p = bokeh.plotting.figure(plot_height=plot_height,
+                                  plot_width=plot_width,
+                                  x_range=[0, m], 
+                                  y_range=[0, n])
+
+        # Add the image to the plot
+        source = bokeh.models.ColumnDataSource(
+                                    data={'image': [im_stack[0]]})
+        p.image(image='image', x=0, y=0, dw=m, dh=n, source=source,
+                color_mapper=color_mapper)
+
+        def _callback(attr, old, new):
+            i = np.searchsorted(time_points, slider.value) 
+            source.data = {'image': [im_stack[i]]}
+
+        slider = bokeh.models.Slider(
+            start=time_points[0],
+            end=time_points[-1],
+            value=time_points[0],
+            step=step,
+            title=title)
+        slider.on_change('value', _callback)
+
+        # Add the plot to the app
+        doc.add_root(bokeh.layouts.column(p, slider))
+
+    handler = bokeh.application.handlers.FunctionHandler(_plot_app)
+    return bokeh.application.Application(handler)
 
 
 def record_clicks(im, notebook_url='localhost:8888', point_size=3,
