@@ -14,6 +14,8 @@ from matplotlib.pyplot import get_cmap as mpl_get_cmap
 import bokeh.models
 import bokeh.palettes
 import bokeh.plotting
+import bokeh.application
+import bokeh.application.handlers
 
 from . import utils
 
