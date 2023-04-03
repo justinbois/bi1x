@@ -19,12 +19,28 @@ import bokeh.application.handlers
 
 from . import utils
 
-def fill_between(x1=None, y1=None, x2=None, y2=None,
-                 x_axis_label=None, y_axis_label=None,
-                 x_axis_type='linear', y_axis_type='linear',
-                 title=None, plot_height=300, plot_width=450,
-                 fill_color='#1f77b4', line_color='#1f77b4', show_line=True,
-                 line_width=1, fill_alpha=1, line_alpha=1, p=None,  **kwargs):
+
+def fill_between(
+    x1=None,
+    y1=None,
+    x2=None,
+    y2=None,
+    x_axis_label=None,
+    y_axis_label=None,
+    x_axis_type="linear",
+    y_axis_type="linear",
+    title=None,
+    frame_height=300,
+    frame_width=450,
+    fill_color="#1f77b4",
+    line_color="#1f77b4",
+    show_line=True,
+    line_width=1,
+    fill_alpha=1,
+    line_alpha=1,
+    p=None,
+    **kwargs,
+):
     """
     Create a filled region between two curves.
 
@@ -47,9 +63,9 @@ def fill_between(x1=None, y1=None, x2=None, y2=None,
     y_axis_type : str, default 'linear'
         Either 'linear' or 'log'.    title : str, default None
         Title of the plot. Ignored if `p` is not None.
-    plot_height : int, default 300
+    frame_height : int, default 300
         Height of plot, in pixels. Ignored if `p` is not None.
-    plot_width : int, default 450
+    frame_width : int, default 450
         Width of plot, in pixels. Ignored if `p` is not None.
     fill_color : str, default '#1f77b4'
         Color of fill as a hex string.
@@ -79,39 +95,51 @@ def fill_between(x1=None, y1=None, x2=None, y2=None,
 
     if p is None:
         p = bokeh.plotting.figure(
-            plot_height=plot_height, plot_width=plot_width,
-            x_axis_type=x_axis_type, y_axis_type=y_axis_type,
-            x_axis_label=x_axis_label, y_axis_label=y_axis_label, title=title)
+            frame_height=frame_height,
+            frame_width=frame_width,
+            x_axis_type=x_axis_type,
+            y_axis_type=y_axis_type,
+            x_axis_label=x_axis_label,
+            y_axis_label=y_axis_label,
+            title=title,
+        )
 
-
-    p.patch(x=np.concatenate((x1, x2[::-1])),
-            y=np.concatenate((y1, y2[::-1])),
-            alpha=fill_alpha,
-            fill_color=fill_color,
-            line_width=0,
-            line_alpha=0,
-            **kwargs)
+    p.patch(
+        x=np.concatenate((x1, x2[::-1])),
+        y=np.concatenate((y1, y2[::-1])),
+        alpha=fill_alpha,
+        fill_color=fill_color,
+        line_width=0,
+        line_alpha=0,
+        **kwargs,
+    )
 
     if show_line:
-        p.line(x1,
-               y1,
-               line_width=line_width,
-               alpha=line_alpha,
-               color=line_color)
-        p.line(x2,
-               y2,
-               line_width=line_width,
-               alpha=line_alpha,
-               color=line_color)
+        p.line(x1, y1, line_width=line_width, alpha=line_alpha, color=line_color)
+        p.line(x2, y2, line_width=line_width, alpha=line_alpha, color=line_color)
 
     return p
 
 
-def ecdf(data=None, conf_int=False, ptiles=[2.5, 97.5], n_bs_reps=1000,
-         fill_color='lightgray', fill_alpha=1, p=None, x_axis_label=None,
-         y_axis_label='ECDF', title=None, plot_height=300, plot_width=450,
-         formal=False, complementary=False, x_axis_type='linear',
-         y_axis_type='linear', **kwargs):
+def ecdf(
+    data=None,
+    conf_int=False,
+    ptiles=[2.5, 97.5],
+    n_bs_reps=1000,
+    fill_color="lightgray",
+    fill_alpha=1,
+    p=None,
+    x_axis_label=None,
+    y_axis_label="ECDF",
+    title=None,
+    frame_height=300,
+    frame_width=450,
+    formal=False,
+    complementary=False,
+    x_axis_type="linear",
+    y_axis_type="linear",
+    **kwargs,
+):
     """
     Create a plot of an ECDF.
 
@@ -141,9 +169,9 @@ def ecdf(data=None, conf_int=False, ptiles=[2.5, 97.5], n_bs_reps=1000,
         Label for the y-axis. Ignored if `p` is not None.
     title : str, default None
         Title of the plot. Ignored if `p` is not None.
-    plot_height : int, default 300
+    frame_height : int, default 300
         Height of plot, in pixels. Ignored if `p` is not None.
-    plot_width : int, default 450
+    frame_width : int, default 450
         Width of plot, in pixels. Ignored if `p` is not None.
     formal : bool, default False
         If True, make a plot of a formal ECDF (staircase). If False,
@@ -173,16 +201,24 @@ def ecdf(data=None, conf_int=False, ptiles=[2.5, 97.5], n_bs_reps=1000,
     # Instantiate Bokeh plot if not already passed in
     if p is None:
         p = bokeh.plotting.figure(
-            plot_height=plot_height, plot_width=plot_width,
-            x_axis_label=x_axis_label, y_axis_label=y_axis_label,
-            x_axis_type=x_axis_type, y_axis_type=y_axis_type, title=title)
+            frame_height=frame_height,
+            frame_width=frame_width,
+            x_axis_label=x_axis_label,
+            y_axis_label=y_axis_label,
+            x_axis_type=x_axis_type,
+            y_axis_type=y_axis_type,
+            title=title,
+        )
 
     # Do bootstrap replicates
     if conf_int:
         x_plot = np.sort(np.unique(x))
-        bs_reps = np.array([_ecdf_arbitrary_points(
-                            np.random.choice(data, size=len(data)), x_plot)
-                                for _ in range(n_bs_reps)])
+        bs_reps = np.array(
+            [
+                _ecdf_arbitrary_points(np.random.choice(data, size=len(data)), x_plot)
+                for _ in range(n_bs_reps)
+            ]
+        )
 
         # Compute the confidence intervals
         ecdf_low, ecdf_high = np.percentile(np.array(bs_reps), ptiles, axis=0)
@@ -191,8 +227,15 @@ def ecdf(data=None, conf_int=False, ptiles=[2.5, 97.5], n_bs_reps=1000,
         _, ecdf_low = _to_formal(x=x_plot, y=ecdf_low)
         x_plot, ecdf_high = _to_formal(x=x_plot, y=ecdf_high)
 
-        p = fill_between(x1=x_plot, y1=ecdf_low, x2=x_plot, y2=ecdf_high,
-                         fill_color=fill_color, show_line=False, p=p)
+        p = fill_between(
+            x1=x_plot,
+            y1=ecdf_low,
+            x2=x_plot,
+            y2=ecdf_high,
+            fill_color=fill_color,
+            show_line=False,
+            p=p,
+        )
 
     if formal:
         # Line of steps
@@ -211,7 +254,7 @@ def ecdf(data=None, conf_int=False, ptiles=[2.5, 97.5], n_bs_reps=1000,
     return p
 
 
-def im_hist(im, p=None, title=None, y_axis_type='linear', **kwargs):
+def im_hist(im, p=None, title=None, y_axis_type="linear", **kwargs):
     """
     Make plot of image histogram.
 
@@ -238,21 +281,33 @@ def im_hist(im, p=None, title=None, y_axis_type='linear', **kwargs):
     hist, bins = skimage.exposure.histogram(im)
 
     if p is None:
-        p = bokeh.plotting.figure(plot_height=300,
-                                  plot_width=400,
-                                  y_axis_type=y_axis_type,
-                                  x_axis_label='intensity',
-                                  y_axis_label='count',
-                                  title=title)
+        p = bokeh.plotting.figure(
+            frame_height=300,
+            frame_width=400,
+            y_axis_type=y_axis_type,
+            x_axis_label="intensity",
+            y_axis_label="count",
+            title=title,
+        )
 
-    p.line(bins, hist, line_width=2, line_join='bevel', **kwargs)
+    p.line(bins, hist, line_width=2, line_join="bevel", **kwargs)
 
     return p
 
 
-def histogram(data=None, bins=10, p=None, x_axis_label=None,
-              y_axis_label=None, title=None, plot_height=300, plot_width=450,
-              density=False, kind='step', **kwargs):
+def histogram(
+    data=None,
+    bins=10,
+    p=None,
+    x_axis_label=None,
+    y_axis_label=None,
+    title=None,
+    frame_height=300,
+    frame_width=450,
+    density=False,
+    kind="step",
+    **kwargs,
+):
     """
     Make a plot of a histogram of a data set.
 
@@ -274,9 +329,9 @@ def histogram(data=None, bins=10, p=None, x_axis_label=None,
         Label for the y-axis. Ignored if `p` is not None.
     title : str, default None
         Title of the plot. Ignored if `p` is not None.
-    plot_height : int, default 300
+    frame_height : int, default 300
         Height of plot, in pixels. Ignored if `p` is not None.
-    plot_width : int, default 450
+    frame_width : int, default 450
         Width of plot, in pixels. Ignored if `p` is not None.
     density : bool, default False
         If True, normalized the histogram. Otherwise, base the histogram
@@ -291,39 +346,46 @@ def histogram(data=None, bins=10, p=None, x_axis_label=None,
         Figure populated with histogram.
     """
     if data is None:
-        raise RuntimeError('Input `data` must be specified.')
+        raise RuntimeError("Input `data` must be specified.")
 
     # Instantiate Bokeh plot if not already passed in
     if p is None:
         if y_axis_label is None:
             if density:
-                y_axis_label = 'density'
+                y_axis_label = "density"
             else:
-                y_axis_label = 'count'
+                y_axis_label = "count"
 
         p = bokeh.plotting.figure(
-            plot_height=plot_height, plot_width=plot_width,
-            x_axis_label=x_axis_label, y_axis_label=y_axis_label,
-            title=title, y_range = bokeh.models.DataRange1d(start=0))
+            frame_height=frame_height,
+            frame_width=frame_width,
+            x_axis_label=x_axis_label,
+            y_axis_label=y_axis_label,
+            title=title,
+            y_range=bokeh.models.DataRange1d(start=0),
+        )
 
-    if bins == 'exact':
+    if bins == "exact":
         a = np.unique(data)
         if len(a) == 1:
             bins = np.array([a[0] - 0.5, a[0] + 0.5])
         else:
-            bins = np.concatenate(((a[0] - (a[1] - a[0])/2,),
-                                    (a[1:] + a[:-1]) / 2,
-                                    (a[-1] + (a[-1]-a[-2]) / 2,)))
-    elif bins == 'integer':
+            bins = np.concatenate(
+                (
+                    (a[0] - (a[1] - a[0]) / 2,),
+                    (a[1:] + a[:-1]) / 2,
+                    (a[-1] + (a[-1] - a[-2]) / 2,),
+                )
+            )
+    elif bins == "integer":
         if np.any(data != np.round(data)):
-            raise RuntimeError(
-                        "'integer' bins chosen, but data are not integer.")
-        bins = np.arange(data.min()-1, data.max()+1) + 0.5
+            raise RuntimeError("'integer' bins chosen, but data are not integer.")
+        bins = np.arange(data.min() - 1, data.max() + 1) + 0.5
 
     # Compute histogram
     f, e = np.histogram(data, bins=bins, density=density)
-    e0 = np.empty(2*len(e))
-    f0 = np.empty(2*len(e))
+    e0 = np.empty(2 * len(e))
+    f0 = np.empty(2 * len(e))
     e0[::2] = e
     e0[1::2] = e
     f0[0] = 0
@@ -331,10 +393,10 @@ def histogram(data=None, bins=10, p=None, x_axis_label=None,
     f0[1:-1:2] = f
     f0[2:-1:2] = f
 
-    if kind == 'step':
+    if kind == "step":
         p.line(e0, f0, **kwargs)
 
-    if kind == 'step_filled':
+    if kind == "step_filled":
         x2 = [e0.min(), e0.max()]
         y2 = [0, 0]
         p = fill_between(e0, f0, x2, y2, show_line=True, p=p, **kwargs)
@@ -342,13 +404,37 @@ def histogram(data=None, bins=10, p=None, x_axis_label=None,
     return p
 
 
-def jitter(data=None, cats=None, val=None, p=None, horizontal=False,
-           x_axis_label=None, y_axis_label=None, title=None, plot_height=300,
-           plot_width=400,
-           palette=['#4e79a7', '#f28e2b', '#e15759', '#76b7b2', '#59a14f',
-                    '#edc948', '#b07aa1', '#ff9da7', '#9c755f', '#bab0ac'],
-           width=0.4, order=None, val_axis_type='linear', show_legend=False,
-           color_column=None, tooltips=None, **kwargs):
+def jitter(
+    data=None,
+    cats=None,
+    val=None,
+    p=None,
+    horizontal=False,
+    x_axis_label=None,
+    y_axis_label=None,
+    title=None,
+    frame_height=300,
+    frame_width=400,
+    palette=[
+        "#4e79a7",
+        "#f28e2b",
+        "#e15759",
+        "#76b7b2",
+        "#59a14f",
+        "#edc948",
+        "#b07aa1",
+        "#ff9da7",
+        "#9c755f",
+        "#bab0ac",
+    ],
+    width=0.4,
+    order=None,
+    val_axis_type="linear",
+    show_legend=False,
+    color_column=None,
+    tooltips=None,
+    **kwargs,
+):
     """
     Make a jitter plot from a tidy DataFrame.
 
@@ -371,9 +457,9 @@ def jitter(data=None, cats=None, val=None, p=None, horizontal=False,
         Label for the y-axis. Ignored if `p` is not None.
     title : str, default None
         Title of the plot. Ignored if `p` is not None.
-    plot_height : int, default 300
+    frame_height : int, default 300
         Height of plot, in pixels. Ignored if `p` is not None.
-    plot_width : int, default 450
+    frame_width : int, default 450
         Width of plot, in pixels. Ignored if `p` is not None.
     palette : list of strings of hex colors, or single hex string
         If a list, color palette to use. If a single string representing
@@ -406,73 +492,96 @@ def jitter(data=None, cats=None, val=None, p=None, horizontal=False,
         Plot populated with jitter plot.
     """
 
-    cols = _check_cat_input(data, cats, val, color_column, tooltips,
-                            palette, kwargs)
+    cols = _check_cat_input(data, cats, val, color_column, tooltips, palette, kwargs)
 
     grouped = data.groupby(cats)
 
     if p is None:
-        p, factors, color_factors = _cat_figure(data,
-                                                grouped,
-                                                plot_height,
-                                                plot_width,
-                                                x_axis_label,
-                                                y_axis_label,
-                                                title,
-                                                order,
-                                                color_column,
-                                                tooltips,
-                                                horizontal,
-                                                val_axis_type)
+        p, factors, color_factors = _cat_figure(
+            data,
+            grouped,
+            frame_height,
+            frame_width,
+            x_axis_label,
+            y_axis_label,
+            title,
+            order,
+            color_column,
+            tooltips,
+            horizontal,
+            val_axis_type,
+        )
     else:
-        _, factors, color_factors = _get_cat_range(data,
-                                                   grouped,
-                                                   order,
-                                                   color_column,
-                                                   horizontal)
+        _, factors, color_factors = _get_cat_range(
+            data, grouped, order, color_column, horizontal
+        )
         if tooltips is not None:
             p.add_tools(bokeh.models.HoverTool(tooltips=tooltips))
 
-    if 'color' not in kwargs:
+    if "color" not in kwargs:
         if color_column is None:
-            color_column = 'cat'
-        kwargs['color'] = bokeh.transform.factor_cmap(color_column,
-                                                      palette=palette,
-                                                      factors=color_factors)
+            color_column = "cat"
+        kwargs["color"] = bokeh.transform.factor_cmap(
+            color_column, palette=palette, factors=color_factors
+        )
 
     source = _cat_source(data, cats, cols, color_column)
 
     if show_legend:
-        kwargs['legend'] = '__label'
+        kwargs["legend"] = "__label"
 
     if horizontal:
-        p.circle(source=source,
-                 x=val,
-                 y=bokeh.transform.jitter('cat',
-                                          width=width,
-                                          range=p.y_range),
-                 **kwargs)
+        p.circle(
+            source=source,
+            x=val,
+            y=bokeh.transform.jitter("cat", width=width, range=p.y_range),
+            **kwargs,
+        )
         p.ygrid.grid_line_color = None
     else:
-        p.circle(source=source,
-                 y=val,
-                 x=bokeh.transform.jitter('cat',
-                                          width=width,
-                                          range=p.x_range),
-                 **kwargs)
+        p.circle(
+            source=source,
+            y=val,
+            x=bokeh.transform.jitter("cat", width=width, range=p.x_range),
+            **kwargs,
+        )
         p.xgrid.grid_line_color = None
 
     return p
 
 
-def box(data=None, cats=None, val=None, p=None, horizontal=False,
-        x_axis_label=None, y_axis_label=None, title=None, plot_height=300,
-        plot_width=400,
-        palette=['#4e79a7', '#f28e2b', '#e15759', '#76b7b2', '#59a14f',
-                 '#edc948', '#b07aa1', '#ff9da7', '#9c755f', '#bab0ac'],
-        width=0.4, order=None, tooltips=None, val_axis_type='linear',
-        display_outliers=True, box_kwargs=None, whisker_kwargs=None,
-        outlier_kwargs=None):
+def box(
+    data=None,
+    cats=None,
+    val=None,
+    p=None,
+    horizontal=False,
+    x_axis_label=None,
+    y_axis_label=None,
+    title=None,
+    frame_height=300,
+    frame_width=400,
+    palette=[
+        "#4e79a7",
+        "#f28e2b",
+        "#e15759",
+        "#76b7b2",
+        "#59a14f",
+        "#edc948",
+        "#b07aa1",
+        "#ff9da7",
+        "#9c755f",
+        "#bab0ac",
+    ],
+    width=0.4,
+    order=None,
+    tooltips=None,
+    val_axis_type="linear",
+    display_outliers=True,
+    box_kwargs=None,
+    whisker_kwargs=None,
+    outlier_kwargs=None,
+):
     """
     Make a box-and-whisker plot from a tidy DataFrame.
 
@@ -493,9 +602,9 @@ def box(data=None, cats=None, val=None, p=None, horizontal=False,
         Label for the y-axis. Ignored if `p` is not None.
     title : str, default None
         Title of the plot. Ignored if `p` is not None.
-    plot_height : int, default 300
+    frame_height : int, default 300
         Height of plot, in pixels. Ignored if `p` is not None.
-    plot_width : int, default 450
+    frame_width : int, default 450
         Width of plot, in pixels. Ignored if `p` is not None.
     palette : list of strings of hex colors, or single hex string
         If a list, color palette to use. If a single string representing
@@ -547,167 +656,211 @@ def box(data=None, cats=None, val=None, p=None, horizontal=False,
        whiskers are considered outliers and are plotted as individual
        points.
     """
-    cols = _check_cat_input(data, cats, val, None, tooltips, palette,
-                            box_kwargs)
+    cols = _check_cat_input(data, cats, val, None, tooltips, palette, box_kwargs)
 
     if whisker_kwargs is None:
-        whisker_kwargs = {'line_color': 'black'}
+        whisker_kwargs = {"line_color": "black"}
     elif type(whisker_kwargs) != dict:
-        raise RuntimeError('`whisker_kwargs` must be a dict.')
+        raise RuntimeError("`whisker_kwargs` must be a dict.")
 
     if outlier_kwargs is None:
         outlier_kwargs = dict()
     elif type(outlier_kwargs) != dict:
-        raise RuntimeError('`outlier_kwargs` must be a dict.')
+        raise RuntimeError("`outlier_kwargs` must be a dict.")
 
     if box_kwargs is None:
-        box_kwargs = {'line_color': 'black'}
+        box_kwargs = {"line_color": "black"}
     elif type(box_kwargs) != dict:
-        raise RuntimeError('`box_kwargs` must be a dict.')
+        raise RuntimeError("`box_kwargs` must be a dict.")
 
     grouped = data.groupby(cats)
 
     if p is None:
-        p, factors, color_factors = _cat_figure(data,
-                                                grouped,
-                                                plot_height,
-                                                plot_width,
-                                                x_axis_label,
-                                                y_axis_label,
-                                                title,
-                                                order,
-                                                None,
-                                                tooltips,
-                                                horizontal,
-                                                val_axis_type)
+        p, factors, color_factors = _cat_figure(
+            data,
+            grouped,
+            frame_height,
+            frame_width,
+            x_axis_label,
+            y_axis_label,
+            title,
+            order,
+            None,
+            tooltips,
+            horizontal,
+            val_axis_type,
+        )
     else:
         if tooltips is not None:
             p.add_tools(bokeh.models.HoverTool(tooltips=tooltips))
 
-        _, factors, color_factors = _get_cat_range(data,
-                                                   grouped,
-                                                   order,
-                                                   None,
-                                                   horizontal)
+        _, factors, color_factors = _get_cat_range(
+            data, grouped, order, None, horizontal
+        )
 
     source_box, source_outliers = _box_source(data, cats, val, cols)
 
-    if 'fill_color' not in box_kwargs:
-        box_kwargs['fill_color'] = bokeh.transform.factor_cmap('cat', palette=palette, factors=factors)
-    if 'line_color' not in box_kwargs:
-        box_kwargs['line_color'] = 'black'
+    if "fill_color" not in box_kwargs:
+        box_kwargs["fill_color"] = bokeh.transform.factor_cmap(
+            "cat", palette=palette, factors=factors
+        )
+    if "line_color" not in box_kwargs:
+        box_kwargs["line_color"] = "black"
 
-    if 'color' in outlier_kwargs:
-        if 'line_color' in outlier_kwargs or 'fill_color' in outlier_kwargs:
-            raise RuntimeError('If `color` is in `outlier_kwargs`, `line_color` and `fill_color` cannot be.')
+    if "color" in outlier_kwargs:
+        if "line_color" in outlier_kwargs or "fill_color" in outlier_kwargs:
+            raise RuntimeError(
+                "If `color` is in `outlier_kwargs`, `line_color` and `fill_color` cannot be."
+            )
     else:
-        if 'fill_color' not in outlier_kwargs:
-            outlier_kwargs['fill_color'] = bokeh.transform.factor_cmap(
-                                    'cat', palette=palette, factors=factors)
-        if 'line_color' not in outlier_kwargs:
-            outlier_kwargs['line_color'] = bokeh.transform.factor_cmap(
-                                    'cat', palette=palette, factors=factors)
+        if "fill_color" not in outlier_kwargs:
+            outlier_kwargs["fill_color"] = bokeh.transform.factor_cmap(
+                "cat", palette=palette, factors=factors
+            )
+        if "line_color" not in outlier_kwargs:
+            outlier_kwargs["line_color"] = bokeh.transform.factor_cmap(
+                "cat", palette=palette, factors=factors
+            )
 
     if horizontal:
-        p.segment(source=source_box,
-                  y0='cat',
-                  y1='cat',
-                  x0='top',
-                  x1='top_whisker',
-                  **whisker_kwargs)
-        p.segment(source=source_box,
-                  y0='cat',
-                  y1='cat',
-                  x0='bottom',
-                  x1='bottom_whisker',
-                  **whisker_kwargs)
-        p.hbar(source=source_box,
-               y='cat',
-               left='top_whisker',
-               right='top_whisker',
-               height=width/4,
-               **whisker_kwargs)
-        p.hbar(source=source_box,
-               y='cat',
-               left='bottom_whisker',
-               right='bottom_whisker',
-               height=width/4,
-               **whisker_kwargs)
-        p.hbar(source=source_box,
-               y='cat',
-               left='bottom',
-               right='top',
-               height=width,
-               **box_kwargs)
-        p.hbar(source=source_box,
-               y='cat',
-               left='middle',
-               right='middle',
-               height=width,
-               **box_kwargs)
+        p.segment(
+            source=source_box,
+            y0="cat",
+            y1="cat",
+            x0="top",
+            x1="top_whisker",
+            **whisker_kwargs,
+        )
+        p.segment(
+            source=source_box,
+            y0="cat",
+            y1="cat",
+            x0="bottom",
+            x1="bottom_whisker",
+            **whisker_kwargs,
+        )
+        p.hbar(
+            source=source_box,
+            y="cat",
+            left="top_whisker",
+            right="top_whisker",
+            height=width / 4,
+            **whisker_kwargs,
+        )
+        p.hbar(
+            source=source_box,
+            y="cat",
+            left="bottom_whisker",
+            right="bottom_whisker",
+            height=width / 4,
+            **whisker_kwargs,
+        )
+        p.hbar(
+            source=source_box,
+            y="cat",
+            left="bottom",
+            right="top",
+            height=width,
+            **box_kwargs,
+        )
+        p.hbar(
+            source=source_box,
+            y="cat",
+            left="middle",
+            right="middle",
+            height=width,
+            **box_kwargs,
+        )
         if display_outliers:
-            p.circle(source=source_outliers,
-                     y='cat',
-                     x=val,
-                     **outlier_kwargs)
+            p.circle(source=source_outliers, y="cat", x=val, **outlier_kwargs)
         p.ygrid.grid_line_color = None
     else:
-        p.segment(source=source_box,
-                  x0='cat',
-                  x1='cat',
-                  y0='top',
-                  y1='top_whisker',
-                  **whisker_kwargs)
-        p.segment(source=source_box,
-                  x0='cat',
-                  x1='cat',
-                  y0='bottom',
-                  y1='bottom_whisker',
-                  **whisker_kwargs)
-        p.vbar(source=source_box,
-               x='cat',
-               bottom='top_whisker',
-               top='top_whisker',
-               width=width/4,
-               **whisker_kwargs)
-        p.vbar(source=source_box,
-               x='cat',
-               bottom='bottom_whisker',
-               top='bottom_whisker',
-               width=width/4,
-               **whisker_kwargs)
-        p.vbar(source=source_box,
-               x='cat',
-               bottom='bottom',
-               top='top',
-               width=width,
-               **box_kwargs)
-        p.vbar(source=source_box,
-               x='cat',
-               bottom='middle',
-               top='middle',
-               width=width,
-               **box_kwargs)
+        p.segment(
+            source=source_box,
+            x0="cat",
+            x1="cat",
+            y0="top",
+            y1="top_whisker",
+            **whisker_kwargs,
+        )
+        p.segment(
+            source=source_box,
+            x0="cat",
+            x1="cat",
+            y0="bottom",
+            y1="bottom_whisker",
+            **whisker_kwargs,
+        )
+        p.vbar(
+            source=source_box,
+            x="cat",
+            bottom="top_whisker",
+            top="top_whisker",
+            width=width / 4,
+            **whisker_kwargs,
+        )
+        p.vbar(
+            source=source_box,
+            x="cat",
+            bottom="bottom_whisker",
+            top="bottom_whisker",
+            width=width / 4,
+            **whisker_kwargs,
+        )
+        p.vbar(
+            source=source_box,
+            x="cat",
+            bottom="bottom",
+            top="top",
+            width=width,
+            **box_kwargs,
+        )
+        p.vbar(
+            source=source_box,
+            x="cat",
+            bottom="middle",
+            top="middle",
+            width=width,
+            **box_kwargs,
+        )
         if display_outliers:
-            p.circle(source=source_outliers,
-                     x='cat',
-                     y=val,
-                     **outlier_kwargs)
+            p.circle(source=source_outliers, x="cat", y=val, **outlier_kwargs)
         p.xgrid.grid_line_color = None
 
     return p
 
 
-def ecdf_collection(data=None, cats=None, val=None, p=None,
-                    complementary=False, formal=False,
-                    x_axis_label=None, y_axis_label=None, title=None,
-                    plot_height=300, plot_width=400,
-                    palette=['#4e79a7', '#f28e2b', '#e15759', '#76b7b2',
-                             '#59a14f', '#edc948', '#b07aa1', '#ff9da7',
-                             '#9c755f', '#bab0ac'],
-                    order=None, show_legend=True, tooltips=None,
-                    val_axis_type='linear', ecdf_axis_type='linear',
-                    **kwargs):
+def ecdf_collection(
+    data=None,
+    cats=None,
+    val=None,
+    p=None,
+    complementary=False,
+    formal=False,
+    x_axis_label=None,
+    y_axis_label=None,
+    title=None,
+    frame_height=300,
+    frame_width=400,
+    palette=[
+        "#4e79a7",
+        "#f28e2b",
+        "#e15759",
+        "#76b7b2",
+        "#59a14f",
+        "#edc948",
+        "#b07aa1",
+        "#ff9da7",
+        "#9c755f",
+        "#bab0ac",
+    ],
+    order=None,
+    show_legend=True,
+    tooltips=None,
+    val_axis_type="linear",
+    ecdf_axis_type="linear",
+    **kwargs,
+):
     """
     Parameters
     ----------
@@ -732,9 +885,9 @@ def ecdf_collection(data=None, cats=None, val=None, p=None,
         Label for the y-axis. Ignored if `p` is not None.
     title : str, default None
         Title of the plot. Ignored if `p` is not None.
-    plot_height : int, default 300
+    frame_height : int, default 300
         Height of plot, in pixels. Ignored if `p` is not None.
-    plot_width : int, default 450
+    frame_width : int, default 450
         Width of plot, in pixels. Ignored if `p` is not None.
     palette : list of strings of hex colors, or single hex string
         If a list, color palette to use. If a single string representing
@@ -769,70 +922,89 @@ def ecdf_collection(data=None, cats=None, val=None, p=None,
     cols = _check_cat_input(data, cats, val, None, tooltips, palette, kwargs)
 
     if complementary:
-        y = '__ECCDF'
+        y = "__ECCDF"
         if y_axis_label is None:
-            y_axis_label = 'ECCDF'
+            y_axis_label = "ECCDF"
     else:
-        y = '__ECDF'
+        y = "__ECDF"
         if y_axis_label is None:
-            y_axis_label = 'ECDF'
+            y_axis_label = "ECDF"
 
     if x_axis_label is None:
         x_axis_label = val
 
-
     if p is None:
-        p = bokeh.plotting.figure(plot_height=plot_height,
-                                  plot_width=plot_width,
-                                  x_axis_label=x_axis_label,
-                                  y_axis_label=y_axis_label,
-                                  x_axis_type=val_axis_type,
-                                  y_axis_type=ecdf_axis_type,
-                                  title=title)
+        p = bokeh.plotting.figure(
+            frame_height=frame_height,
+            frame_width=frame_width,
+            x_axis_label=x_axis_label,
+            y_axis_label=y_axis_label,
+            x_axis_type=val_axis_type,
+            y_axis_type=ecdf_axis_type,
+            title=title,
+        )
 
     if formal:
-        p = _ecdf_collection_formal(data,
-                                    val,
-                                    cats,
-                                    complementary,
-                                    order,
-                                    palette,
-                                    show_legend,
-                                    p,
-                                    **kwargs)
+        p = _ecdf_collection_formal(
+            data, val, cats, complementary, order, palette, show_legend, p, **kwargs
+        )
     else:
-        p = _ecdf_collection_dots(data,
-                                  val,
-                                  cats,
-                                  cols,
-                                  complementary,
-                                  order,
-                                  palette,
-                                  show_legend,
-                                  y,
-                                  p,
-                                  **kwargs)
+        p = _ecdf_collection_dots(
+            data,
+            val,
+            cats,
+            cols,
+            complementary,
+            order,
+            palette,
+            show_legend,
+            y,
+            p,
+            **kwargs,
+        )
 
     if not formal and tooltips is not None:
         p.add_tools(bokeh.models.HoverTool(tooltips=tooltips))
 
     if show_legend:
         if complementary:
-            p.legend.location = 'top_right'
+            p.legend.location = "top_right"
         else:
-            p.legend.location = 'bottom_right'
+            p.legend.location = "bottom_right"
 
     return p
 
 
-def colored_ecdf(data=None, cats=None, val=None, p=None, complementary=False,
-                 x_axis_label=None, y_axis_label=None, title=None,
-                 plot_height=300, plot_width=400,
-                 palette=['#4e79a7', '#f28e2b', '#e15759', '#76b7b2',
-                          '#59a14f', '#edc948', '#b07aa1', '#ff9da7',
-                          '#9c755f', '#bab0ac'],
-                 order=None, show_legend=True, tooltips=None,
-                 val_axis_type='linear', ecdf_axis_type='linear', **kwargs):
+def colored_ecdf(
+    data=None,
+    cats=None,
+    val=None,
+    p=None,
+    complementary=False,
+    x_axis_label=None,
+    y_axis_label=None,
+    title=None,
+    frame_height=300,
+    frame_width=400,
+    palette=[
+        "#4e79a7",
+        "#f28e2b",
+        "#e15759",
+        "#76b7b2",
+        "#59a14f",
+        "#edc948",
+        "#b07aa1",
+        "#ff9da7",
+        "#9c755f",
+        "#bab0ac",
+    ],
+    order=None,
+    show_legend=True,
+    tooltips=None,
+    val_axis_type="linear",
+    ecdf_axis_type="linear",
+    **kwargs,
+):
     """
     Parameters
     ----------
@@ -854,9 +1026,9 @@ def colored_ecdf(data=None, cats=None, val=None, p=None, complementary=False,
         Label for the y-axis. Ignored if `p` is not None.
     title : str, default None
         Title of the plot. Ignored if `p` is not None.
-    plot_height : int, default 300
+    frame_height : int, default 300
         Height of plot, in pixels. Ignored if `p` is not None.
-    plot_width : int, default 450
+    frame_width : int, default 450
         Width of plot, in pixels. Ignored if `p` is not None.
     palette : list of strings of hex colors, or single hex string
         If a list, color palette to use. If a single string representing
@@ -890,64 +1062,81 @@ def colored_ecdf(data=None, cats=None, val=None, p=None, complementary=False,
     cols = _check_cat_input(data, cats, val, None, tooltips, palette, kwargs)
 
     if complementary:
-        y = '__ECCDF'
+        y = "__ECCDF"
         if y_axis_label is None:
-            y_axis_label = 'ECCDF'
+            y_axis_label = "ECCDF"
     else:
-        y = '__ECDF'
+        y = "__ECDF"
         if y_axis_label is None:
-            y_axis_label = 'ECDF'
+            y_axis_label = "ECDF"
 
     df = data.copy()
     df[y] = df[val].transform(_ecdf_y, complementary=complementary)
     cols += [y]
     source = _cat_source(df, cats, cols, None)
-    _, _, color_factors = _get_cat_range(df,
-                                         df.groupby(cats),
-                                         order,
-                                         None,
-                                         False)
+    _, _, color_factors = _get_cat_range(df, df.groupby(cats), order, None, False)
 
-    if 'color' not in kwargs:
-        kwargs['color'] = bokeh.transform.factor_cmap('cat',
-                                                    palette=palette,
-                                                    factors=color_factors)
+    if "color" not in kwargs:
+        kwargs["color"] = bokeh.transform.factor_cmap(
+            "cat", palette=palette, factors=color_factors
+        )
 
     if show_legend:
-        kwargs['legend'] = '__label'
+        kwargs["legend"] = "__label"
 
     if p is None:
-        p = bokeh.plotting.figure(plot_height=plot_height,
-                                  plot_width=plot_width,
-                                  x_axis_label=x_axis_label,
-                                  y_axis_label=y_axis_label,
-                                  x_axis_type=val_axis_type,
-                                  y_axis_type=ecdf_axis_type,
-                                  title=title,
-                                  tooltips=tooltips)
+        p = bokeh.plotting.figure(
+            frame_height=frame_height,
+            frame_width=frame_width,
+            x_axis_label=x_axis_label,
+            y_axis_label=y_axis_label,
+            x_axis_type=val_axis_type,
+            y_axis_type=ecdf_axis_type,
+            title=title,
+            tooltips=tooltips,
+        )
 
-    p.circle(source=source,
-             x=val,
-             y=y,
-             **kwargs)
+    p.circle(source=source, x=val, y=y, **kwargs)
 
     if show_legend:
         if complementary:
-            p.legend.location = 'top_right'
+            p.legend.location = "top_right"
         else:
-            p.legend.location = 'bottom_right'
+            p.legend.location = "bottom_right"
 
     return p
 
 
-def colored_scatter(data=None, cats=None, x=None, y=None, p=None,
-                 x_axis_label=None, y_axis_label=None, title=None,
-                 plot_height=300, plot_width=400,
-                 palette=['#4e79a7', '#f28e2b', '#e15759', '#76b7b2',
-                          '#59a14f', '#edc948', '#b07aa1', '#ff9da7',
-                          '#9c755f', '#bab0ac'],
-                 order=None, show_legend=True, tooltips=None,
-                 x_axis_type='linear', y_axis_type='linear', **kwargs):
+def colored_scatter(
+    data=None,
+    cats=None,
+    x=None,
+    y=None,
+    p=None,
+    x_axis_label=None,
+    y_axis_label=None,
+    title=None,
+    frame_height=300,
+    frame_width=400,
+    palette=[
+        "#4e79a7",
+        "#f28e2b",
+        "#e15759",
+        "#76b7b2",
+        "#59a14f",
+        "#edc948",
+        "#b07aa1",
+        "#ff9da7",
+        "#9c755f",
+        "#bab0ac",
+    ],
+    order=None,
+    show_legend=True,
+    tooltips=None,
+    x_axis_type="linear",
+    y_axis_type="linear",
+    **kwargs,
+):
     """
     Parameters
     ----------
@@ -968,9 +1157,9 @@ def colored_scatter(data=None, cats=None, x=None, y=None, p=None,
         Label for the y-axis. Ignored if `p` is not None.
     title : str, default None
         Title of the plot. Ignored if `p` is not None.
-    plot_height : int, default 300
+    frame_height : int, default 300
         Height of plot, in pixels. Ignored if `p` is not None.
-    plot_width : int, default 450
+    frame_width : int, default 450
         Width of plot, in pixels. Ignored if `p` is not None.
     palette : list of strings of hex colors, or single hex string
         If a list, color palette to use. If a single string representing
@@ -1005,49 +1194,59 @@ def colored_scatter(data=None, cats=None, x=None, y=None, p=None,
     if y in data:
         cols += [y]
     else:
-        raise RuntimeError(f'Column {y} not in inputted dataframe.')
+        raise RuntimeError(f"Column {y} not in inputted dataframe.")
 
     df = data.copy()
     source = _cat_source(df, cats, cols, None)
-    _, _, color_factors = _get_cat_range(df,
-                                         df.groupby(cats),
-                                         order,
-                                         None,
-                                         False)
+    _, _, color_factors = _get_cat_range(df, df.groupby(cats), order, None, False)
 
-    if 'color' not in kwargs:
-        kwargs['color'] = bokeh.transform.factor_cmap('cat',
-                                                    palette=palette,
-                                                    factors=color_factors)
+    if "color" not in kwargs:
+        kwargs["color"] = bokeh.transform.factor_cmap(
+            "cat", palette=palette, factors=color_factors
+        )
 
     if show_legend:
-        kwargs['legend'] = '__label'
+        kwargs["legend"] = "__label"
 
     if p is None:
-        p = bokeh.plotting.figure(plot_height=plot_height,
-                                  plot_width=plot_width,
-                                  x_axis_label=x_axis_label,
-                                  y_axis_label=y_axis_label,
-                                  x_axis_type=x_axis_type,
-                                  y_axis_type=y_axis_type,
-                                  title=title,
-                                  tooltips=tooltips)
+        p = bokeh.plotting.figure(
+            frame_height=frame_height,
+            frame_width=frame_width,
+            x_axis_label=x_axis_label,
+            y_axis_label=y_axis_label,
+            x_axis_type=x_axis_type,
+            y_axis_type=y_axis_type,
+            title=title,
+            tooltips=tooltips,
+        )
 
-    p.circle(source=source,
-             x=x,
-             y=y,
-             **kwargs)
+    p.circle(source=source, x=x, y=y, **kwargs)
 
     return p
 
 
-def imshow(im, color_mapper=None, plot_height=400, plot_width=None,
-           length_units='pixels', interpixel_distance=1.0,
-           x_range=None, y_range=None, colorbar=False,
-           no_ticks=False, x_axis_label=None, y_axis_label=None,
-           title=None, flip=True, return_im=False,
-           saturate_channels=True, min_intensity=None,
-           max_intensity=None, display_clicks=False, record_clicks=False):
+def imshow(
+    im,
+    color_mapper=None,
+    frame_height=400,
+    frame_width=None,
+    length_units="pixels",
+    interpixel_distance=1.0,
+    x_range=None,
+    y_range=None,
+    colorbar=False,
+    no_ticks=False,
+    x_axis_label=None,
+    y_axis_label=None,
+    title=None,
+    flip=True,
+    return_im=False,
+    saturate_channels=True,
+    min_intensity=None,
+    max_intensity=None,
+    display_clicks=False,
+    record_clicks=False,
+):
     """
     Display an image in a Bokeh figure.
 
@@ -1062,10 +1261,10 @@ def imshow(im, color_mapper=None, plot_height=400, plot_width=None,
         intensity to color. If None, default is 256-level Viridis.
         If `im` is a color image, then `color_mapper` can either be
         'rgb' or 'cmy' (default), for RGB or CMY merge of channels.
-    plot_height : int
+    frame_height : int
         Height of the plot in pixels. The width is scaled so that the
         x and y distance between pixels is the same.
-    plot_width : int or None (default)
+    frame_width : int or None (default)
         If None, the width is scaled so that the x and y distance
         between pixels is approximately the same. Otherwise, the width
         of the plot in pixels.
@@ -1129,15 +1328,16 @@ def imshow(im, color_mapper=None, plot_height=400, plot_width=None,
     """
     if record_clicks:
         warnings.warn(
-            '`record_clicks` is deprecated. Use the `bi1x.viz.record_clicks()` function to store clicks. Otherwise use the `display_clicks` kwarg to print the clicks to the right of the displayed image.',
-            DeprecationWarning)
+            "`record_clicks` is deprecated. Use the `bi1x.viz.record_clicks()` function to store clicks. Otherwise use the `display_clicks` kwarg to print the clicks to the right of the displayed image.",
+            DeprecationWarning,
+        )
 
     # If a single channel in 3D image, flatten and check shape
     if im.ndim == 3:
         if im.shape[2] == 1:
-            im = im[:,:,0]
+            im = im[:, :, 0]
         elif im.shape[2] not in [2, 3]:
-            raise RuntimeError('Can only display 1, 2, or 3 channels.')
+            raise RuntimeError("Can only display 1, 2, or 3 channels.")
 
     # If binary image, make sure it's int
     if im.dtype == bool:
@@ -1146,12 +1346,9 @@ def imshow(im, color_mapper=None, plot_height=400, plot_width=None,
     # Get color mapper
     if im.ndim == 2:
         if color_mapper is None:
-            color_mapper = bokeh.models.LinearColorMapper(
-                                        bokeh.palettes.viridis(256))
-        elif (type(color_mapper) == str
-                and color_mapper.lower() in ['rgb', 'cmy']):
-            raise RuntimeError(
-                    'Cannot use rgb or cmy colormap for intensity image.')
+            color_mapper = bokeh.models.LinearColorMapper(bokeh.palettes.viridis(256))
+        elif type(color_mapper) == str and color_mapper.lower() in ["rgb", "cmy"]:
+            raise RuntimeError("Cannot use rgb or cmy colormap for intensity image.")
         if min_intensity is None:
             color_mapper.low = im.min()
         else:
@@ -1161,29 +1358,32 @@ def imshow(im, color_mapper=None, plot_height=400, plot_width=None,
         else:
             color_mapper.high = max_intensity
     elif im.ndim == 3:
-        if color_mapper is None or color_mapper.lower() == 'cmy':
-            im = im_merge(*np.rollaxis(im, 2),
-                          cmy=True,
-                          im_0_min=min_intensity,
-                          im_1_min=min_intensity,
-                          im_2_min=min_intensity,
-                          im_0_max=max_intensity,
-                          im_1_max=max_intensity,
-                          im_2_max=max_intensity)
-        elif color_mapper.lower() == 'rgb':
-            im = im_merge(*np.rollaxis(im, 2),
-                          cmy=False,
-                          im_0_min=min_intensity,
-                          im_1_min=min_intensity,
-                          im_2_min=min_intensity,
-                          im_0_max=max_intensity,
-                          im_1_max=max_intensity,
-                          im_2_max=max_intensity)
+        if color_mapper is None or color_mapper.lower() == "cmy":
+            im = im_merge(
+                *np.rollaxis(im, 2),
+                cmy=True,
+                im_0_min=min_intensity,
+                im_1_min=min_intensity,
+                im_2_min=min_intensity,
+                im_0_max=max_intensity,
+                im_1_max=max_intensity,
+                im_2_max=max_intensity,
+            )
+        elif color_mapper.lower() == "rgb":
+            im = im_merge(
+                *np.rollaxis(im, 2),
+                cmy=False,
+                im_0_min=min_intensity,
+                im_1_min=min_intensity,
+                im_2_min=min_intensity,
+                im_0_max=max_intensity,
+                im_1_max=max_intensity,
+                im_2_max=max_intensity,
+            )
         else:
-            raise RuntimeError('Invalid color mapper for color image.')
+            raise RuntimeError("Invalid color mapper for color image.")
     else:
-        raise RuntimeError(
-                    'Input image array must have either 2 or 3 dimensions.')
+        raise RuntimeError("Input image array must have either 2 or 3 dimensions.")
 
     # Get shape, dimensions
     n, m = im.shape[:2]
@@ -1197,23 +1397,25 @@ def imshow(im, color_mapper=None, plot_height=400, plot_width=None,
         y_range = [0, dh]
 
     # Set up figure with appropriate dimensions
-    if plot_width is None:
-        plot_width = int(m/n * plot_height)
+    if frame_width is None:
+        frame_width = int(m / n * frame_height)
     if colorbar:
-        plot_width += 40
-        toolbar_location = 'above'
+        frame_width += 40
+        toolbar_location = "above"
     else:
-        toolbar_location = 'right'
-    p = bokeh.plotting.figure(plot_height=plot_height,
-                              plot_width=plot_width,
-                              x_range=x_range,
-                              y_range=y_range,
-                              title=title,
-                              toolbar_location=toolbar_location,
-                              tools='pan,box_zoom,wheel_zoom,save,reset')
+        toolbar_location = "right"
+    p = bokeh.plotting.figure(
+        frame_height=frame_height,
+        frame_width=frame_width,
+        x_range=x_range,
+        y_range=y_range,
+        title=title,
+        toolbar_location=toolbar_location,
+        tools="pan,box_zoom,wheel_zoom,save,reset",
+    )
     if no_ticks:
-        p.xaxis.major_label_text_font_size = '0pt'
-        p.yaxis.major_label_text_font_size = '0pt'
+        p.xaxis.major_label_text_font_size = "0pt"
+        p.yaxis.major_label_text_font_size = "0pt"
         p.xaxis.major_tick_line_color = None
         p.xaxis.minor_tick_line_color = None
         p.yaxis.major_tick_line_color = None
@@ -1231,36 +1433,41 @@ def imshow(im, color_mapper=None, plot_height=400, plot_width=None,
     # Display the image
     if im.ndim == 2:
         if flip:
-            im = im[::-1,:]
-        im_bokeh = p.image(image=[im],
-                           x=x_range[0],
-                           y=y_range[0],
-                           dw=dw,
-                           dh=dh,
-                           color_mapper=color_mapper)
+            im = im[::-1, :]
+        im_bokeh = p.image(
+            image=[im],
+            x=x_range[0],
+            y=y_range[0],
+            dw=dw,
+            dh=dh,
+            color_mapper=color_mapper,
+        )
     else:
-        im_bokeh = p.image_rgba(image=[rgb_to_rgba32(im, flip=flip)],
-                                x=x_range[0],
-                                y=y_range[0],
-                                dw=dw,
-                                dh=dh)
+        im_bokeh = p.image_rgba(
+            image=[rgb_to_rgba32(im, flip=flip)],
+            x=x_range[0],
+            y=y_range[0],
+            dw=dw,
+            dh=dh,
+        )
 
     # Make a colorbar
     if colorbar:
         if im.ndim == 3:
-            warnings.warn('No colorbar display for RGB images.')
+            warnings.warn("No colorbar display for RGB images.")
         else:
-            color_bar = bokeh.models.ColorBar(color_mapper=color_mapper,
-                                              label_standoff=12,
-                                              border_line_color=None,
-                                              location=(0,0))
-            p.add_layout(color_bar, 'right')
+            color_bar = bokeh.models.ColorBar(
+                color_mapper=color_mapper,
+                label_standoff=12,
+                border_line_color=None,
+                location=(0, 0),
+            )
+            p.add_layout(color_bar, "right")
 
     if record_clicks or display_clicks:
         div = bokeh.models.Div(width=200)
         layout = bokeh.layouts.row(p, div)
-        p.js_on_event(bokeh.events.Tap,
-                      _display_clicks(div, attributes=['x', 'y']))
+        p.js_on_event(bokeh.events.Tap, _display_clicks(div, attributes=["x", "y"]))
         if return_im:
             return layout, im_bokeh
         else:
@@ -1271,12 +1478,12 @@ def imshow(im, color_mapper=None, plot_height=400, plot_width=None,
     return p
 
 
-def imstackshow(im_stack, time_points=None, 
-                color_mapper=None, downscale=1, 
-                plot_height=400):
+def imstackshow(
+    im_stack, time_points=None, color_mapper=None, downscale=1, frame_height=400
+):
     """
     Build display of image stack.
-    
+
     Parameters
     ----------
     im_stack : list of tuple of 2d Numpy arrays
@@ -1290,13 +1497,13 @@ def imstackshow(im_stack, time_points=None,
         If `im` is a color image, then `color_mapper` can either be
         'rgb' or 'cmy' (default), for RGB or CMY merge of channels.
     downscale : int, default 1
-        Factor by which to downscale image for viewing. You will 
+        Factor by which to downscale image for viewing. You will
         experience performance issues if the images are to large. As
         a rough estimate, your image size should be no larger than about
         400x400 pixels.
-    plot_height : int, default 400
+    frame_height : int, default 400
         Height of plot, in pixels.
-        
+
     Notes
     -----
     .. To display in a notebook hosted, e.g., at `localhost:8888`, do
@@ -1307,18 +1514,20 @@ def imstackshow(im_stack, time_points=None,
     if time_points is None:
         time_points = np.arange(len(im_stack))
         step = 1
-        title = 'image index'
+        title = "image index"
     else:
         step = 1 / len(time_points) * (time_points[1] - time_points[0])
-        title = 'time'
-    
+        title = "time"
+
     if downscale > 1:
-        im_stack = [skimage.transform.downscale_local_mean(im, (downscale, downscale)) 
-                        for im in im_stack]
+        im_stack = [
+            skimage.transform.downscale_local_mean(im, (downscale, downscale))
+            for im in im_stack
+        ]
 
     # Make sure number of time points matches dimensions
     if len(im_stack) != len(time_points):
-        raise RuntimeError('Number of time points must equal im_stack.shape[0].')
+        raise RuntimeError("Number of time points must equal im_stack.shape[0].")
 
     # Determine maximal and minimal intensity
     im_stack_max = 0
@@ -1328,42 +1537,51 @@ def imstackshow(im_stack, time_points=None,
             im_stack_max = im.max()
         if im.min() < im_stack_min:
             im_stack_min = im.min()
-    
+
     # Colormapper
     if color_mapper is None:
         color_mapper = bokeh.models.LinearColorMapper(
-                    bokeh.palettes.viridis(256), 
-                    low=im_stack_min, high=im_stack_max)
+            bokeh.palettes.viridis(256), low=im_stack_min, high=im_stack_max
+        )
 
     # Get shape of domain
     n, m = im_stack[0].shape
-    
+
     # Set up figure with appropriate dimensions
-    plot_width = int(m/n * plot_height)
+    frame_width = int(m / n * frame_height)
 
     def _plot_app(doc):
-        p = bokeh.plotting.figure(plot_height=plot_height,
-                                  plot_width=plot_width,
-                                  x_range=[0, m], 
-                                  y_range=[0, n])
+        p = bokeh.plotting.figure(
+            frame_height=frame_height,
+            frame_width=frame_width,
+            x_range=[0, m],
+            y_range=[0, n],
+        )
 
         # Add the image to the plot
-        source = bokeh.models.ColumnDataSource(
-                                    data={'image': [im_stack[0]]})
-        p.image(image='image', x=0, y=0, dw=m, dh=n, source=source,
-                color_mapper=color_mapper)
+        source = bokeh.models.ColumnDataSource(data={"image": [im_stack[0]]})
+        p.image(
+            image="image",
+            x=0,
+            y=0,
+            dw=m,
+            dh=n,
+            source=source,
+            color_mapper=color_mapper,
+        )
 
         def _callback(attr, old, new):
-            i = np.searchsorted(time_points, slider.value) 
-            source.data = {'image': [im_stack[i]]}
+            i = np.searchsorted(time_points, slider.value)
+            source.data = {"image": [im_stack[i]]}
 
         slider = bokeh.models.Slider(
             start=time_points[0],
             end=time_points[-1],
             value=time_points[0],
             step=step,
-            title=title)
-        slider.on_change('value', _callback)
+            title=title,
+        )
+        slider.on_change("value", _callback)
 
         # Add the plot to the app
         doc.add_root(bokeh.layouts.column(p, slider))
@@ -1372,13 +1590,30 @@ def imstackshow(im_stack, time_points=None,
     return bokeh.application.Application(handler)
 
 
-def record_clicks(im, notebook_url='localhost:8888', point_size=3,
-            table_height=200, crosshair_alpha=0.5,
-            point_color='white', color_mapper=None, plot_height=400,
-            plot_width=None, length_units='pixels', interpixel_distance=1.0,
-            x_range=None, y_range=None, colorbar=False, no_ticks=False,
-            x_axis_label=None, y_axis_label=None, title=None, flip=False,
-            saturate_channels=True, min_intensity=None, max_intensity=None):
+def record_clicks(
+    im,
+    notebook_url="localhost:8888",
+    point_size=3,
+    table_height=200,
+    crosshair_alpha=0.5,
+    point_color="white",
+    color_mapper=None,
+    frame_height=400,
+    frame_width=None,
+    length_units="pixels",
+    interpixel_distance=1.0,
+    x_range=None,
+    y_range=None,
+    colorbar=False,
+    no_ticks=False,
+    x_axis_label=None,
+    y_axis_label=None,
+    title=None,
+    flip=False,
+    saturate_channels=True,
+    min_intensity=None,
+    max_intensity=None,
+):
     """Display and record mouse clicks on a Bokeh plot of an image.
 
     Parameters
@@ -1400,10 +1635,10 @@ def record_clicks(im, notebook_url='localhost:8888', point_size=3,
         intensity to color. If None, default is 256-level Viridis.
         If `im` is a color image, then `color_mapper` can either be
         'rgb' or 'cmy' (default), for RGB or CMY merge of channels.
-    plot_height : int
+    frame_height : int
         Height of the plot in pixels. The width is scaled so that the
         x and y distance between pixels is the same.
-    plot_width : int or None (default)
+    frame_width : int or None (default)
         If None, the width is scaled so that the x and y distance
         between pixels is approximately the same. Otherwise, the width
         of the plot in pixels.
@@ -1448,40 +1683,49 @@ def record_clicks(im, notebook_url='localhost:8888', point_size=3,
         converted to a Pandas DataFrame using the `to_df()` method. For
         example, `output.to_df()`.
     """
-    points_source = bokeh.models.ColumnDataSource({'x': [], 'y': []})
+    points_source = bokeh.models.ColumnDataSource({"x": [], "y": []})
 
     def modify_doc(doc):
-        p = imshow(im,
-                   color_mapper=color_mapper,
-                   plot_height=plot_height,
-                   plot_width=plot_width,
-                   length_units=length_units,
-                   interpixel_distance=interpixel_distance,
-                   x_range=x_range,
-                   y_range=y_range,
-                   colorbar=colorbar,
-                   no_ticks=no_ticks,
-                   x_axis_label=x_axis_label,
-                   y_axis_label=y_axis_label,
-                   title=title,
-                   flip=flip,
-                   return_im=False,
-                   saturate_channels=saturate_channels,
-                   min_intensity=min_intensity,
-                   max_intensity=max_intensity)
+        p = imshow(
+            im,
+            color_mapper=color_mapper,
+            frame_height=frame_height,
+            frame_width=frame_width,
+            length_units=length_units,
+            interpixel_distance=interpixel_distance,
+            x_range=x_range,
+            y_range=y_range,
+            colorbar=colorbar,
+            no_ticks=no_ticks,
+            x_axis_label=x_axis_label,
+            y_axis_label=y_axis_label,
+            title=title,
+            flip=flip,
+            return_im=False,
+            saturate_channels=saturate_channels,
+            min_intensity=min_intensity,
+            max_intensity=max_intensity,
+        )
 
         view = bokeh.models.CDSView(source=points_source)
 
-        renderer = p.scatter(x='x', y='y', source=points_source, view=view,
-                             color=point_color, size=point_size)
+        renderer = p.scatter(
+            x="x",
+            y="y",
+            source=points_source,
+            view=view,
+            color=point_color,
+            size=point_size,
+        )
 
-        columns = [bokeh.models.TableColumn(field='x', title='x'),
-                   bokeh.models.TableColumn(field='y', title='y')]
+        columns = [
+            bokeh.models.TableColumn(field="x", title="x"),
+            bokeh.models.TableColumn(field="y", title="y"),
+        ]
 
-        table = bokeh.models.DataTable(source=points_source,
-                                       columns=columns,
-                                       editable=True,
-                                       height=table_height)
+        table = bokeh.models.DataTable(
+            source=points_source, columns=columns, editable=True, height=table_height
+        )
 
         draw_tool = bokeh.models.PointDrawTool(renderers=[renderer])
         p.add_tools(draw_tool)
@@ -1495,14 +1739,32 @@ def record_clicks(im, notebook_url='localhost:8888', point_size=3,
     return points_source
 
 
-def draw_rois(im, notebook_url='localhost:8888', table_height=100,
-            crosshair_tool_alpha=0.5,
-            color='white', fill_alpha=0.1, vertex_color='red',
-            vertex_size=10, color_mapper=None, plot_height=400,
-            plot_width=None, length_units='pixels', interpixel_distance=1.0,
-            x_range=None, y_range=None, colorbar=False, no_ticks=False,
-            x_axis_label=None, y_axis_label=None, title=None, flip=False,
-            saturate_channels=True, min_intensity=None, max_intensity=None):
+def draw_rois(
+    im,
+    notebook_url="localhost:8888",
+    table_height=100,
+    crosshair_tool_alpha=0.5,
+    color="white",
+    fill_alpha=0.1,
+    vertex_color="red",
+    vertex_size=10,
+    color_mapper=None,
+    frame_height=400,
+    frame_width=None,
+    length_units="pixels",
+    interpixel_distance=1.0,
+    x_range=None,
+    y_range=None,
+    colorbar=False,
+    no_ticks=False,
+    x_axis_label=None,
+    y_axis_label=None,
+    title=None,
+    flip=False,
+    saturate_channels=True,
+    min_intensity=None,
+    max_intensity=None,
+):
     """Draw and record polygonal regions of interest on a plot of a
     Bokeh image.
 
@@ -1531,10 +1793,10 @@ def draw_rois(im, notebook_url='localhost:8888', table_height=100,
         intensity to color. If None, default is 256-level Viridis.
         If `im` is a color image, then `color_mapper` can either be
         'rgb' or 'cmy' (default), for RGB or CMY merge of channels.
-    plot_height : int
+    frame_height : int
         Height of the plot in pixels. The width is scaled so that the
         x and y distance between pixels is the same.
-    plot_width : int or None (default)
+    frame_width : int or None (default)
         If None, the width is scaled so that the x and y distance
         between pixels is approximately the same. Otherwise, the width
         of the plot in pixels.
@@ -1587,43 +1849,53 @@ def draw_rois(im, notebook_url='localhost:8888', table_height=100,
        polygon.
     """
 
-    poly_source = bokeh.models.ColumnDataSource({'xs': [], 'ys': []})
+    poly_source = bokeh.models.ColumnDataSource({"xs": [], "ys": []})
 
     def modify_doc(doc):
-        p = imshow(im,
-                   color_mapper=color_mapper,
-                   plot_height=plot_height,
-                   plot_width=plot_width,
-                   length_units=length_units,
-                   interpixel_distance=interpixel_distance,
-                   x_range=x_range,
-                   y_range=y_range,
-                   colorbar=colorbar,
-                   no_ticks=no_ticks,
-                   x_axis_label=x_axis_label,
-                   y_axis_label=y_axis_label,
-                   title=title,
-                   flip=flip,
-                   return_im=False,
-                   saturate_channels=saturate_channels,
-                   min_intensity=min_intensity,
-                   max_intensity=max_intensity)
+        p = imshow(
+            im,
+            color_mapper=color_mapper,
+            frame_height=frame_height,
+            frame_width=frame_width,
+            length_units=length_units,
+            interpixel_distance=interpixel_distance,
+            x_range=x_range,
+            y_range=y_range,
+            colorbar=colorbar,
+            no_ticks=no_ticks,
+            x_axis_label=x_axis_label,
+            y_axis_label=y_axis_label,
+            title=title,
+            flip=flip,
+            return_im=False,
+            saturate_channels=saturate_channels,
+            min_intensity=min_intensity,
+            max_intensity=max_intensity,
+        )
 
         view = bokeh.models.CDSView(source=poly_source)
-        renderer = p.patches(xs='xs', ys='ys', source=poly_source, view=view,
-                             fill_alpha=fill_alpha, color=color)
-        vertex_renderer = p.circle([], [], size=vertex_size, color='red')
+        renderer = p.patches(
+            xs="xs",
+            ys="ys",
+            source=poly_source,
+            view=view,
+            fill_alpha=fill_alpha,
+            color=color,
+        )
+        vertex_renderer = p.circle([], [], size=vertex_size, color="red")
 
-        columns = [bokeh.models.TableColumn(field='xs', title='xs'),
-                   bokeh.models.TableColumn(field='ys', title='ys')]
+        columns = [
+            bokeh.models.TableColumn(field="xs", title="xs"),
+            bokeh.models.TableColumn(field="ys", title="ys"),
+        ]
 
-        table = bokeh.models.DataTable(source=poly_source,
-                                       index_header='roi',
-                                       columns=columns,
-                                       height=table_height)
+        table = bokeh.models.DataTable(
+            source=poly_source, index_header="roi", columns=columns, height=table_height
+        )
         draw_tool = bokeh.models.PolyDrawTool(renderers=[renderer])
-        edit_tool = bokeh.models.PolyEditTool(renderers=[renderer],
-                                              vertex_renderer=vertex_renderer)
+        edit_tool = bokeh.models.PolyEditTool(
+            renderers=[renderer], vertex_renderer=vertex_renderer
+        )
         p.add_tools(draw_tool)
         p.add_tools(edit_tool)
         p.add_tools(bokeh.models.CrosshairTool(line_alpha=crosshair_tool_alpha))
@@ -1651,16 +1923,25 @@ def roicds_to_df(cds):
         DataFrame with columns ['roi', 'x', 'y'] containing the
         positions of the vertices of the respective polygonal ROIs.
     """
-    roi = np.concatenate([[i]*len(x_data) for i, x_data in enumerate(cds.data['xs'])])
-    x = np.concatenate(cds.data['xs'])
-    y = np.concatenate(cds.data['ys'])
+    roi = np.concatenate([[i] * len(x_data) for i, x_data in enumerate(cds.data["xs"])])
+    x = np.concatenate(cds.data["xs"])
+    y = np.concatenate(cds.data["ys"])
 
     return pd.DataFrame(data=dict(roi=roi, x=x, y=y))
 
 
-def im_merge(im_0, im_1, im_2=None, im_0_max=None,
-             im_1_max=None, im_2_max=None, im_0_min=None,
-             im_1_min=None, im_2_min=None, cmy=True):
+def im_merge(
+    im_0,
+    im_1,
+    im_2=None,
+    im_0_max=None,
+    im_1_max=None,
+    im_2_max=None,
+    im_0_min=None,
+    im_1_min=None,
+    im_2_min=None,
+    cmy=True,
+):
     """
     Merge channels to make RGB image.
 
@@ -1716,16 +1997,20 @@ def im_merge(im_0, im_1, im_2=None, im_0_max=None,
         im_2_min = im_2.min()
 
     # Make sure maxes are ok
-    if im_0_max < im_0.max() or im_1_max < im_1.max() \
-            or (im_2 is not None and im_2_max < im_2.max()):
-        raise RuntimeError(
-                'Inputted max of channel < max of inputted channel.')
+    if (
+        im_0_max < im_0.max()
+        or im_1_max < im_1.max()
+        or (im_2 is not None and im_2_max < im_2.max())
+    ):
+        raise RuntimeError("Inputted max of channel < max of inputted channel.")
 
     # Make sure mins are ok
-    if im_0_min > im_0.min() or im_1_min > im_1.min() \
-            or (im_2 is not None and im_2_min > im_2.min()):
-        raise RuntimeError(
-                'Inputted min of channel > min of inputted channel.')
+    if (
+        im_0_min > im_0.min()
+        or im_1_min > im_1.min()
+        or (im_2 is not None and im_2_min > im_2.min())
+    ):
+        raise RuntimeError("Inputted min of channel > min of inputted channel.")
 
     # Scale the images
     if im_0_max > im_0_min:
@@ -1752,12 +2037,12 @@ def im_merge(im_0, im_1, im_2=None, im_0_max=None,
         im_y = np.stack((im_2, im_2, np.zeros_like(im_2)), axis=2)
         im_rgb = im_c + im_m + im_y
         for i in [0, 1, 2]:
-            im_rgb[:,:,i] /= im_rgb[:,:,i].max()
+            im_rgb[:, :, i] /= im_rgb[:, :, i].max()
     else:
         im_rgb = np.empty((*im_0.shape, 3))
-        im_rgb[:,:,0] = im_0
-        im_rgb[:,:,1] = im_1
-        im_rgb[:,:,2] = im_2
+        im_rgb[:, :, 0] = im_0
+        im_rgb[:, :, 1] = im_1
+        im_rgb[:, :, 2] = im_2
 
     return im_rgb
 
@@ -1781,24 +2066,25 @@ def rgb_to_rgba32(im, flip=True):
         Image decoded as a 32 bit RBGA image.
     """
     # Ensure it has three channels
-    if im.ndim != 3 or im.shape[2] !=3:
-        raise RuntimeError('Input image is not RGB.')
+    if im.ndim != 3 or im.shape[2] != 3:
+        raise RuntimeError("Input image is not RGB.")
 
     # Make sure all entries between zero and one
     if (im < 0).any() or (im > 1).any():
-        raise RuntimeError('All pixel values must be between 0 and 1.')
+        raise RuntimeError("All pixel values must be between 0 and 1.")
 
     # Get image shape
     n, m, _ = im.shape
 
     # Convert to 8-bit, which is expected for viewing
     with warnings.catch_warnings():
-        warnings.simplefilter('ignore')
+        warnings.simplefilter("ignore")
         im_8 = skimage.img_as_ubyte(im)
 
     # Add the alpha channel, which is expected by Bokeh
-    im_rgba = np.stack((*np.rollaxis(im_8, 2),
-                        255*np.ones((n, m), dtype=np.uint8)), axis=2)
+    im_rgba = np.stack(
+        (*np.rollaxis(im_8, 2), 255 * np.ones((n, m), dtype=np.uint8)), axis=2
+    )
 
     # Reshape into 32 bit. Must flip up/down for proper orientation
     if flip:
@@ -1831,29 +2117,73 @@ def rgb_frac_to_hex(rgb_frac):
     """
 
     if len(rgb_frac) != 3:
-        raise RuntimeError('`rgb_frac` must have exactly three entries.')
+        raise RuntimeError("`rgb_frac` must have exactly three entries.")
 
     if (np.array(rgb_frac) < 0).any() or (np.array(rgb_frac) > 1).any():
-        raise RuntimeError('RGB values must be between 0 and 1.')
+        raise RuntimeError("RGB values must be between 0 and 1.")
 
-    return '#{0:02x}{1:02x}{2:02x}'.format(int(rgb_frac[0] * 255),
-                                           int(rgb_frac[1] * 255),
-                                           int(rgb_frac[2] * 255))
+    return "#{0:02x}{1:02x}{2:02x}".format(
+        int(rgb_frac[0] * 255), int(rgb_frac[1] * 255), int(rgb_frac[2] * 255)
+    )
 
 
-def boxwhisker(data, cats, val, p=None, horizontal=False, x_axis_label=None,
-        y_axis_label=None, title=None, plot_height=300, plot_width=400,
-        palette=['#4e79a7', '#f28e2b', '#e15759', '#76b7b2', '#59a14f',
-                 '#edc948', '#b07aa1', '#ff9da7', '#9c755f', '#bab0ac'],
-        width=0.4, order=None, val_axis_type='linear', display_outliers=True,
-        box_kwargs=None, whisker_kwargs=None, outlier_kwargs=None):
+def boxwhisker(
+    data,
+    cats,
+    val,
+    p=None,
+    horizontal=False,
+    x_axis_label=None,
+    y_axis_label=None,
+    title=None,
+    frame_height=300,
+    frame_width=400,
+    palette=[
+        "#4e79a7",
+        "#f28e2b",
+        "#e15759",
+        "#76b7b2",
+        "#59a14f",
+        "#edc948",
+        "#b07aa1",
+        "#ff9da7",
+        "#9c755f",
+        "#bab0ac",
+    ],
+    width=0.4,
+    order=None,
+    val_axis_type="linear",
+    display_outliers=True,
+    box_kwargs=None,
+    whisker_kwargs=None,
+    outlier_kwargs=None,
+):
     """Deprecated, see `box`."""
-    warnings.warn('`boxwhisker` is deprecated and will be removed in future versions. Use `box`.', DeprecationWarning)
+    warnings.warn(
+        "`boxwhisker` is deprecated and will be removed in future versions. Use `box`.",
+        DeprecationWarning,
+    )
 
-    return box(data, cats, val, p, horizontal, x_axis_label, y_axis_label,
-               title, plot_height, plot_width, palette, width, order,
-               val_axis_type, display_outliers, box_kwargs, whisker_kwargs,
-               outlier_kwargs)
+    return box(
+        data,
+        cats,
+        val,
+        p,
+        horizontal,
+        x_axis_label,
+        y_axis_label,
+        title,
+        frame_height,
+        frame_width,
+        palette,
+        width,
+        order,
+        val_axis_type,
+        display_outliers,
+        box_kwargs,
+        whisker_kwargs,
+        outlier_kwargs,
+    )
 
 
 def mpl_cmap_to_color_mapper(cmap):
@@ -1901,14 +2231,14 @@ def _ecdf_vals(data, formal=False, complementary=False):
         y-values for plot
     """
     x = np.sort(data)
-    y = np.arange(1, len(data)+1) / len(data)
+    y = np.arange(1, len(data) + 1) / len(data)
 
     if formal:
         x, y = _to_formal(x, y)
         if complementary:
             y = 1 - y
     elif complementary:
-        y = 1 - y + 1/len(y)
+        y = 1 - y + 1 / len(y)
 
     return x, y
 
@@ -1917,21 +2247,22 @@ def _ecdf_vals(data, formal=False, complementary=False):
 def _ecdf_arbitrary_points(data, x):
     """Give the value of an ECDF at arbitrary points x."""
     y = np.arange(len(data) + 1) / len(data)
-    return y[np.searchsorted(np.sort(data), x, side='right')]
+    return y[np.searchsorted(np.sort(data), x, side="right")]
 
 
 def _ecdf_from_samples(df, name, ptiles, x):
     """Compute ECDFs and percentiles from samples."""
     df_ecdf = pd.DataFrame()
     df_ecdf_vals = pd.DataFrame()
-    grouped = df.groupby(['chain', 'chain_idx'])
+    grouped = df.groupby(["chain", "chain_idx"])
     for i, g in grouped:
         df_ecdf_vals[i] = _ecdf_arbitrary_points(g[name].values, x)
 
     for ptile in ptiles:
         df_ecdf[str(ptile)] = df_ecdf_vals.quantile(
-                            ptile/100, axis=1, interpolation='higher')
-    df_ecdf['x'] = x
+            ptile / 100, axis=1, interpolation="higher"
+        )
+    df_ecdf["x"] = x
 
     return df_ecdf
 
@@ -1939,8 +2270,8 @@ def _ecdf_from_samples(df, name, ptiles, x):
 def _to_formal(x, y):
     """Convert to formal ECDF."""
     # Set up output arrays
-    x_formal = np.empty(2*len(x))
-    y_formal = np.empty(2*len(x))
+    x_formal = np.empty(2 * len(x))
+    y_formal = np.empty(2 * len(x))
 
     # y-values for steps
     y_formal[0] = 0
@@ -1957,22 +2288,22 @@ def _to_formal(x, y):
 @numba.jit(nopython=True)
 def _y_ecdf(data, x):
     y = np.arange(len(data) + 1) / len(data)
-    return y[np.searchsorted(np.sort(data), x, side='right')]
+    return y[np.searchsorted(np.sort(data), x, side="right")]
 
 
 @numba.jit(nopython=True)
 def _draw_ecdf_bootstrap(L, n, n_bs_reps=100000):
-    x = np.arange(L+1)
+    x = np.arange(L + 1)
     ys = np.empty((n_bs_reps, len(x)))
     for i in range(n_bs_reps):
-        draws = np.random.randint(0, L+1, size=n)
+        draws = np.random.randint(0, L + 1, size=n)
         ys[i, :] = _y_ecdf(draws, x)
     return ys
 
 
 def _ecdf_diff(data, L, formal=False):
     x, y = _ecdf_vals(data)
-    y_uniform = (x + 1)/L
+    y_uniform = (x + 1) / L
     if formal:
         x, y = _to_formal(x, y)
         _, y_uniform = _to_formal(np.arange(len(data)), y_uniform)
@@ -1984,8 +2315,9 @@ def _ecdf_diff(data, L, formal=False):
 def _get_cat_range(df, grouped, order, color_column, horizontal):
     if order is None:
         if isinstance(list(grouped.groups.keys())[0], tuple):
-            factors = tuple([tuple([str(k) for k in key])
-                                for key in grouped.groups.keys()])
+            factors = tuple(
+                [tuple([str(k) for k in key]) for key in grouped.groups.keys()]
+            )
         else:
             factors = tuple([str(key) for key in grouped.groups.keys()])
     else:
@@ -2002,34 +2334,44 @@ def _get_cat_range(df, grouped, order, color_column, horizontal):
     if color_column is None:
         color_factors = factors
     else:
-        color_factors = tuple(sorted(list(
-                                df[color_column].unique().astype(str))))
+        color_factors = tuple(sorted(list(df[color_column].unique().astype(str))))
 
     return cat_range, factors, color_factors
 
 
-def _cat_figure(df, grouped, plot_height, plot_width, x_axis_label,
-                y_axis_label, title, order, color_column, tooltips,
-                horizontal, val_axis_type):
-    fig_kwargs = dict(plot_height=plot_height,
-                      plot_width=plot_width,
-                      x_axis_label=x_axis_label,
-                      y_axis_label=y_axis_label,
-                      title=title,
-                      tooltips=tooltips)
+def _cat_figure(
+    df,
+    grouped,
+    frame_height,
+    frame_width,
+    x_axis_label,
+    y_axis_label,
+    title,
+    order,
+    color_column,
+    tooltips,
+    horizontal,
+    val_axis_type,
+):
+    fig_kwargs = dict(
+        frame_height=frame_height,
+        frame_width=frame_width,
+        x_axis_label=x_axis_label,
+        y_axis_label=y_axis_label,
+        title=title,
+        tooltips=tooltips,
+    )
 
-    cat_range, factors, color_factors = _get_cat_range(df,
-                                                       grouped,
-                                                       order,
-                                                       color_column,
-                                                       horizontal)
+    cat_range, factors, color_factors = _get_cat_range(
+        df, grouped, order, color_column, horizontal
+    )
 
     if horizontal:
-        fig_kwargs['y_range'] = cat_range
-        fig_kwargs['x_axis_type'] = val_axis_type
+        fig_kwargs["y_range"] = cat_range
+        fig_kwargs["x_axis_type"] = val_axis_type
     else:
-        fig_kwargs['x_range'] = cat_range
-        fig_kwargs['y_axis_type'] = val_axis_type
+        fig_kwargs["x_range"] = cat_range
+        fig_kwargs["y_axis_type"] = val_axis_type
 
     return bokeh.plotting.figure(**fig_kwargs), factors, color_factors
 
@@ -2037,7 +2379,7 @@ def _cat_figure(df, grouped, plot_height, plot_width, x_axis_label,
 def _cat_source(df, cats, cols, color_column):
     if type(cats) in [list, tuple]:
         cat_source = list(zip(*tuple([df[cat].astype(str) for cat in cats])))
-        labels = [', '.join(cat) for cat in cat_source]
+        labels = [", ".join(cat) for cat in cat_source]
     else:
         cat_source = list(df[cats].astype(str).values)
         labels = cat_source
@@ -2047,11 +2389,11 @@ def _cat_source(df, cats, cols, color_column):
     else:
         source_dict = {cols: list(df[cols].values)}
 
-    source_dict['cat'] = cat_source
-    if color_column in [None, 'cat']:
-        source_dict['__label'] = labels
+    source_dict["cat"] = cat_source
+    if color_column in [None, "cat"]:
+        source_dict["__label"] = labels
     else:
-        source_dict['__label'] = list(df[color_column].astype(str).values)
+        source_dict["__label"] = list(df[color_column].astype(str).values)
         source_dict[color_column] = list(df[color_column].astype(str).values)
 
     return bokeh.models.ColumnDataSource(source_dict)
@@ -2061,18 +2403,17 @@ def _tooltip_cols(tooltips):
     if tooltips is None:
         return []
     if type(tooltips) not in [list, tuple]:
-        raise RuntimeError(
-                '`tooltips` must be a list or tuple of two-tuples.')
+        raise RuntimeError("`tooltips` must be a list or tuple of two-tuples.")
 
     cols = []
     for tip in tooltips:
         if type(tip) not in [list, tuple] or len(tip) != 2:
-            raise RuntimeError('Invalid tooltip.')
-        if tip[1][0] == '@':
-            if tip[1][1] == '{':
-                cols.append(tip[1][2:tip[1].find('}')])
-            elif '{' in tip[1]:
-                cols.append(tip[1][1:tip[1].find('{')])
+            raise RuntimeError("Invalid tooltip.")
+        if tip[1][0] == "@":
+            if tip[1][1] == "{":
+                cols.append(tip[1][2 : tip[1].find("}")])
+            elif "{" in tip[1]:
+                cols.append(tip[1][1 : tip[1].find("{")])
             else:
                 cols.append(tip[1][1:])
 
@@ -2096,52 +2437,45 @@ def _cols_to_keep(cats, val, color_column, tooltips):
 
 def _check_cat_input(df, cats, val, color_column, tooltips, palette, kwargs):
     if df is None:
-        raise RuntimeError('`df` argument must be provided.')
+        raise RuntimeError("`df` argument must be provided.")
     if cats is None:
-        raise RuntimeError('`cats` argument must be provided.')
+        raise RuntimeError("`cats` argument must be provided.")
     if val is None:
-        raise RuntimeError('`val` argument must be provided.')
+        raise RuntimeError("`val` argument must be provided.")
 
     if type(palette) not in [list, tuple]:
-        raise RuntimeError('`palette` must be a list or tuple.')
+        raise RuntimeError("`palette` must be a list or tuple.")
 
     if val not in df.columns:
-        raise RuntimeError(
-            f'{val} is not a column in the inputted data frame')
+        raise RuntimeError(f"{val} is not a column in the inputted data frame")
 
     cats_array = type(cats) in [list, tuple]
 
     if cats_array:
         for cat in cats:
             if cat not in df.columns:
-                raise RuntimeError(
-                        f'{cat} is not a column in the inputted data frame')
+                raise RuntimeError(f"{cat} is not a column in the inputted data frame")
     else:
         if cats not in df.columns:
-            raise RuntimeError(
-                        f'{cats} is not a column in the inputted data frame')
+            raise RuntimeError(f"{cats} is not a column in the inputted data frame")
 
     if color_column is not None and color_column not in df.columns:
-        raise RuntimeError(
-                f'{color_column} is not a column in the inputted data frame')
+        raise RuntimeError(f"{color_column} is not a column in the inputted data frame")
 
     cols = _cols_to_keep(cats, val, color_column, tooltips)
 
     for col in cols:
         if col not in df.columns:
-            raise RuntimeError(
-                    f'{col} is not a column in the inputted data frame')
+            raise RuntimeError(f"{col} is not a column in the inputted data frame")
 
-    bad_kwargs = ['x', 'y', 'source', 'cat', 'legend']
-    if (kwargs is not None
-            and any([key in kwargs for key in bad_kwargs])):
-        raise RuntimeError(', '.join(bad_kwargs) + ' are not allowed kwargs.')
+    bad_kwargs = ["x", "y", "source", "cat", "legend"]
+    if kwargs is not None and any([key in kwargs for key in bad_kwargs]):
+        raise RuntimeError(", ".join(bad_kwargs) + " are not allowed kwargs.")
 
-    if val == 'cat':
+    if val == "cat":
         raise RuntimeError("`'cat'` cannot be used as `val`.")
 
-    if (    val == '__label'
-         or (cats == '__label' or (cats_array and '__label' in cats))):
+    if val == "__label" or (cats == "__label" or (cats_array and "__label" in cats)):
         raise RuntimeError("'__label' cannot be used for `val` or `cats`.")
 
     return cols
@@ -2150,8 +2484,8 @@ def _check_cat_input(df, cats, val, color_column, tooltips, palette, kwargs):
 def _outliers(data):
     bottom, middle, top = np.percentile(data, [25, 50, 75])
     iqr = top - bottom
-    top_whisker = min(top + 1.5*iqr, data.max())
-    bottom_whisker = max(bottom - 1.5*iqr, data.min())
+    top_whisker = min(top + 1.5 * iqr, data.max())
+    bottom_whisker = max(bottom - 1.5 * iqr, data.min())
     outliers = data[(data > top_whisker) | (data < bottom_whisker)]
     return outliers
 
@@ -2161,13 +2495,17 @@ def _box_and_whisker(data):
     bottom = data.quantile(0.25)
     top = data.quantile(0.75)
     iqr = top - bottom
-    top_whisker = min(top + 1.5*iqr, data.max())
-    bottom_whisker = max(bottom - 1.5*iqr, data.min())
-    return pd.Series({'middle': middle,
-                      'bottom': bottom,
-                      'top': top,
-                      'top_whisker': top_whisker,
-                      'bottom_whisker': bottom_whisker})
+    top_whisker = min(top + 1.5 * iqr, data.max())
+    bottom_whisker = max(bottom - 1.5 * iqr, data.min())
+    return pd.Series(
+        {
+            "middle": middle,
+            "bottom": bottom,
+            "top": top,
+            "top_whisker": top_whisker,
+            "bottom_whisker": bottom_whisker,
+        }
+    )
 
 
 def _box_source(df, cats, val, cols):
@@ -2188,11 +2526,9 @@ def _box_source(df, cats, val, cols):
 
     # Data frame for boxes and whiskers
     df_box = grouped[val].apply(_box_and_whisker).unstack().reset_index()
-    source_box = _cat_source(df_box,
-                             cats,
-                             ['middle', 'bottom', 'top',
-                              'top_whisker', 'bottom_whisker'],
-                             None)
+    source_box = _cat_source(
+        df_box, cats, ["middle", "bottom", "top", "top_whisker", "bottom_whisker"], None
+    )
 
     # Data frame for outliers
     df_outliers = grouped[val].apply(_outliers).reset_index(level=level)
@@ -2224,9 +2560,9 @@ def _ecdf_y(data, complementary=False):
        ECDFs
     """
     if complementary:
-        return 1 - data.rank(method='first') / len(data) + 1 / len(data)
+        return 1 - data.rank(method="first") / len(data) + 1 / len(data)
     else:
-        return data.rank(method='first') / len(data)
+        return data.rank(method="first") / len(data)
 
 
 def _point_ecdf_source(data, val, cats, cols, complementary, colored):
@@ -2234,9 +2570,9 @@ def _point_ecdf_source(data, val, cats, cols, complementary, colored):
     df = data.copy()
 
     if complementary:
-        col = '__ECCDF'
+        col = "__ECCDF"
     else:
-        col = '__ECDF'
+        col = "__ECDF"
 
     if cats is None or colored:
         df[col] = _ecdf_y(df[val], complementary)
@@ -2248,70 +2584,69 @@ def _point_ecdf_source(data, val, cats, cols, complementary, colored):
     return _cat_source(df, cats, cols, None)
 
 
-def _ecdf_collection_dots(df, val, cats, cols, complementary, order, palette,
-                          show_legend, y, p, **kwargs):
-    _, _, color_factors = _get_cat_range(df,
-                                         df.groupby(cats),
-                                         order,
-                                         None,
-                                         False)
+def _ecdf_collection_dots(
+    df, val, cats, cols, complementary, order, palette, show_legend, y, p, **kwargs
+):
+    _, _, color_factors = _get_cat_range(df, df.groupby(cats), order, None, False)
 
     source = _point_ecdf_source(df, val, cats, cols, complementary, False)
 
-    if 'color' not in kwargs:
-        kwargs['color'] = bokeh.transform.factor_cmap('cat',
-                                                    palette=palette,
-                                                    factors=color_factors)
+    if "color" not in kwargs:
+        kwargs["color"] = bokeh.transform.factor_cmap(
+            "cat", palette=palette, factors=color_factors
+        )
 
     if show_legend:
-        kwargs['legend'] = '__label'
+        kwargs["legend"] = "__label"
 
-    p.circle(source=source,
-             x=val,
-             y=y,
-             **kwargs)
+    p.circle(source=source, x=val, y=y, **kwargs)
 
     return p
 
 
-def _ecdf_collection_formal(df, val, cats, complementary, order, palette,
-                            show_legend, p, **kwargs):
+def _ecdf_collection_formal(
+    df, val, cats, complementary, order, palette, show_legend, p, **kwargs
+):
     grouped = df.groupby(cats)
 
-    color_not_in_kwargs = 'color' not in kwargs
+    color_not_in_kwargs = "color" not in kwargs
 
     if order is None:
         order = list(grouped.groups.keys())
-    grouped_iterator = [(order_val, grouped.get_group(order_val))
-                        for order_val in order]
+    grouped_iterator = [
+        (order_val, grouped.get_group(order_val)) for order_val in order
+    ]
 
     for i, g in enumerate(grouped_iterator):
         if show_legend:
             if type(g[0]) == tuple:
-                legend = ', '.join([str(c) for c in g[0]])
+                legend = ", ".join([str(c) for c in g[0]])
             else:
                 legend = str(g[0])
         else:
             legend = None
 
         if color_not_in_kwargs:
-            kwargs['color'] = palette[i % len(palette)]
+            kwargs["color"] = palette[i % len(palette)]
 
-        ecdf(g[1][val],
-             formal=True,
-             p=p,
-             legend=legend,
-             complementary=complementary,
-             **kwargs)
+        ecdf(
+            g[1][val],
+            formal=True,
+            p=p,
+            legend=legend,
+            complementary=complementary,
+            **kwargs,
+        )
 
     return p
 
 
-def _display_clicks(div, attributes=[],
-                    style='float:left;clear:left;font_size=0.5pt'):
+def _display_clicks(div, attributes=[], style="float:left;clear:left;font_size=0.5pt"):
     """Build a suitable CustomJS to display the current event
     in the div model."""
-    return bokeh.models.CustomJS(args=dict(div=div), code="""
+    return bokeh.models.CustomJS(
+        args=dict(div=div),
+        code="""
         var attrs = %s; var args = [];
         for (var i=0; i<attrs.length; i++ ) {
             args.push(Number(cb_obj[attrs[i]]).toFixed(4));
@@ -2321,32 +2656,47 @@ def _display_clicks(div, attributes=[],
         var lines = text.split("\\n")
         if ( lines.length > 35 ) { lines.shift(); }
         div.text = lines.join("\\n");
-    """ % (attributes, style))
+    """
+        % (attributes, style),
+    )
 
 
 def _data_range(df, x, y, margin=0.02):
     x_range = df[x].max() - df[x].min()
     y_range = df[y].max() - df[y].min()
-    return ([df[x].min() - x_range*margin, df[x].max() + x_range*margin],
-            [df[y].min() - y_range*margin, df[y].max() + y_range*margin])
+    return (
+        [df[x].min() - x_range * margin, df[x].max() + x_range * margin],
+        [df[y].min() - y_range * margin, df[y].max() + y_range * margin],
+    )
 
 
-def im_click(im, color_mapper=None, plot_height=400, plot_width=None,
-             length_units='pixels', interpixel_distance=1.0,
-             x_range=None, y_range=None,
-             no_ticks=False, x_axis_label=None, y_axis_label=None,
-             title=None, flip=True):
-    """
-    """
+def im_click(
+    im,
+    color_mapper=None,
+    frame_height=400,
+    frame_width=None,
+    length_units="pixels",
+    interpixel_distance=1.0,
+    x_range=None,
+    y_range=None,
+    no_ticks=False,
+    x_axis_label=None,
+    y_axis_label=None,
+    title=None,
+    flip=True,
+):
+    """ """
 
-    warnings.warn('`im_click` is deprecated. Use `imshow` instead.',
-                  DeprecationWarning)
+    warnings.warn("`im_click` is deprecated. Use `imshow` instead.", DeprecationWarning)
 
-    def display_event(div, attributes=[],
-                      style='float:left;clear:left;font_size=0.5pt'):
+    def display_event(
+        div, attributes=[], style="float:left;clear:left;font_size=0.5pt"
+    ):
         """Build a suitable CustomJS to display the current event
         in the div model."""
-        return bokeh.models.CustomJS(args=dict(div=div), code="""
+        return bokeh.models.CustomJS(
+            args=dict(div=div),
+            code="""
             var attrs = %s; var args = [];
             for (var i=0; i<attrs.length; i++ ) {
                 args.push(Number(cb_obj[attrs[i]]).toFixed(4));
@@ -2356,25 +2706,29 @@ def im_click(im, color_mapper=None, plot_height=400, plot_width=None,
             var lines = text.split("\\n")
             if ( lines.length > 35 ) { lines.shift(); }
             div.text = lines.join("\\n");
-        """ % (attributes, style))
+        """
+            % (attributes, style),
+        )
 
-    p = imshow(im,
-               color_mapper=color_mapper,
-               plot_height=plot_height,
-               plot_width=plot_width,
-               length_units=length_units,
-               interpixel_distance=interpixel_distance,
-               x_range=x_range,
-               y_range=y_range,
-               no_ticks=no_ticks,
-               x_axis_label=x_axis_label,
-               y_axis_label=y_axis_label,
-               title=title,
-               flip=flip)
+    p = imshow(
+        im,
+        color_mapper=color_mapper,
+        frame_height=frame_height,
+        frame_width=frame_width,
+        length_units=length_units,
+        interpixel_distance=interpixel_distance,
+        x_range=x_range,
+        y_range=y_range,
+        no_ticks=no_ticks,
+        x_axis_label=x_axis_label,
+        y_axis_label=y_axis_label,
+        title=title,
+        flip=flip,
+    )
 
     div = bokeh.models.Div(width=200)
     layout = bokeh.layouts.row(p, div)
 
-    p.js_on_event(bokeh.events.Tap, display_event(div, attributes=['x', 'y']))
+    p.js_on_event(bokeh.events.Tap, display_event(div, attributes=["x", "y"]))
 
     return layout
